@@ -56,7 +56,6 @@ export const AdminDashboard = () => {
     () => (token ? parseJwt(token)?.role : null),
     [token],
   );
-  console.log("ROLE:", userRole);
 
   const [activeTab, setActiveTab] = useState(
     userRole === "garson" ? "pos" : "orders",
@@ -68,11 +67,6 @@ export const AdminDashboard = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ events: [] });
   const [waiterCalls, setWaiterCalls] = useState<any[]>([]);
-  const productMap = useMemo(() => {
-    const map: Record<string, Product> = {};
-    products.forEach((p) => (map[p._id] = p));
-    return map;
-  }, [products]);
 
   // POS & Düzenleme
   const [posCategory, setPosCategory] = useState<string>("all");
@@ -102,7 +96,7 @@ export const AdminDashboard = () => {
   );
 
   useEffect(() => {
-    if (!token || !parseJwt(token)) {
+    if (!token) {
       navigate("/admin-login");
       return;
     }
@@ -127,17 +121,14 @@ export const AdminDashboard = () => {
         console.error("Veri çekme hatası.");
       }
     };
-
     fetchData();
 
     const socket = io(window.location.origin);
-
     socket.on("new_order", (order) => {
       setOrders((prev) => [order, ...prev]);
       if (userRole !== "garson")
         toast.success(`Yeni Sipariş: ${order.tableNumber}`);
     });
-
     socket.on("waiter_called", (data) => {
       setWaiterCalls((prev) => [
         { id: Date.now(), table: data.table, time: new Date() },
@@ -150,7 +141,9 @@ export const AdminDashboard = () => {
     return () => {
       socket.disconnect();
     };
-  }, [token, navigate, userRole]); // --- SİPARİŞ AKSİYONLARI ---
+  }, [token, navigate, userRole]);
+
+  // --- SİPARİŞ AKSİYONLARI ---
   const updateOrderStatus = async (id: string, status: string) => {
     try {
       await axios.put(
@@ -191,15 +184,11 @@ export const AdminDashboard = () => {
     setPosTable(order.tableNumber.replace("Masa ", ""));
 
     order.items.forEach((item: any) => {
-      const productData =
-        productMap[item.product] || productMap[item.product?._id];
+      const productData = products.find(
+        (p) => p._id === item.product || p._id === item.product?._id,
+      );
       if (productData) {
-        addToCart(
-          { ...productData, id: Date.now() + Math.random() },
-          item.quantity,
-          item.note,
-          item.selectedExtras,
-        );
+        addToCart(productData, item.quantity, item.note, item.selectedExtras);
       }
     });
     setActiveTab("pos");
@@ -310,32 +299,6 @@ export const AdminDashboard = () => {
           { headers: { Authorization: `Bearer ${token}` } },
         );
       }
-      const deleteCategory = async (id: string) => {
-        if (!window.confirm("Bu kategoriyi silmek istediğinize emin misiniz?"))
-          return;
-        try {
-          await axios.delete(`/api/categories/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setCategories(categories.filter((c) => c._id !== id));
-          toast.success("Kategori silindi.");
-        } catch {
-          toast.error("Silinemedi.");
-        }
-      };
-      const deleteProduct = async (id: string) => {
-        if (!window.confirm("Bu ürünü silmek istediğinize emin misiniz?"))
-          return;
-        try {
-          await axios.delete(`/api/products/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setProducts(products.filter((p) => p._id !== id));
-          toast.success("Ürün silindi.");
-        } catch {
-          toast.error("Silinemedi.");
-        }
-      };
       const catRes = await axios.get("/api/categories");
       setCategories(catRes.data);
       setCategoryName("");
@@ -383,8 +346,9 @@ export const AdminDashboard = () => {
     const productSales: Record<string, number> = {};
     completedOrders.forEach((order) => {
       order.items.forEach((item: any) => {
-        const productObj =
-          productMap[item.product] || productMap[item.product?._id];
+        const productObj = products.find(
+          (p) => p._id === item.product || p._id === item.product?._id,
+        );
         const pName = productObj ? productObj.name : "Eski Kayıt Ürünü";
         productSales[pName] = (productSales[pName] || 0) + item.quantity;
       });
@@ -664,7 +628,7 @@ export const AdminDashboard = () => {
 
                           {/* SİLME BUTONU DÜZELTİLDİ: item.id kullanılıyor */}
                           <button
-                            onClick={() => removeFromCart(item)}
+                            onClick={() => removeFromCart(item.id)}
                             className="text-white bg-red-500 p-2 rounded-xl shadow-lg shadow-red-500/30 hover:scale-110 active:scale-95 transition-all">
                             <Trash2 size={16} />
                           </button>
@@ -728,8 +692,10 @@ export const AdminDashboard = () => {
                       </td>
                       <td className="px-8 py-6">
                         {order.items.map((i: any, idx: number) => {
-                          const productData =
-                            productMap[i.product] || productMap[i.product?._id];
+                          const productData = products.find(
+                            (p) =>
+                              p._id === i.product || p._id === i.product?._id,
+                          );
                           return (
                             <div
                               key={idx}
