@@ -42,6 +42,8 @@ router.post("/auth/login", async (req, res) => {
   }
 });
 
+/* 🚨 CANLI ORTAM İÇİN YORUMA ALINDI (GÜVENLİK) 🚨 
+   Eğer veritabanını tekrar sıfırlaman gerekirse bu yorum satırlarını kaldırıp lokalde yapabilirsin.
 router.get("/auth/setup", async (req, res) => {
   try {
     await User.deleteMany({}); // Eski kullanıcıları sil
@@ -66,6 +68,7 @@ router.get("/auth/setup", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+*/
 
 // --- CATEGORIES ---
 router.get("/categories", async (req, res) => {
@@ -181,7 +184,8 @@ router.put("/orders/:id/status", authGuard, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-}); // --- SİPARİŞ SİLME ROTASI ---
+});
+
 router.delete("/orders/:id", authGuard, async (req, res) => {
   try {
     await Order.findByIdAndDelete(req.params.id);
@@ -191,7 +195,6 @@ router.delete("/orders/:id", authGuard, async (req, res) => {
   }
 });
 
-// --- SİPARİŞ GÜNCELLEME ROTASI (Eğer daha önce eklemediysen) ---
 router.put("/orders/:id", authGuard, async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(req.params.id, req.body, {
