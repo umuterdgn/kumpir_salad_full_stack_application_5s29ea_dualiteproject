@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAppStore, Product } from "../store";
 import { io } from "socket.io-client";
@@ -8,31 +8,27 @@ import {
   ShoppingBag,
   BellRing,
   LogOut,
-  Package,
   Utensils,
   Plus,
   Trash2,
-  Menu as MenuIcon,
   ChevronLeft,
-  ChevronRight,
-  Image as ImageIcon,
-  FileText,
-  Tag,
-  DollarSign,
+  Edit3,
   FolderTree,
+  ShoppingCart,
   TrendingUp,
   Eye,
   Percent,
   Layers,
-  ShoppingCart,
-  Edit3,
+  Image as ImageIcon,
 } from "lucide-react";
 import { SEO } from "../components/SEO";
 import { ProductModal } from "../components/ProductModal";
 import ReactECharts from "echarts-for-react";
 import toast from "react-hot-toast";
 
-// JWT'den rolü çözen yardımcı
+// Vercel/Vite ortam değişkeni
+const API_URL = import.meta.env.VITE_API_URL || "";
+
 const parseJwt = (token: string) => {
   try {
     return JSON.parse(atob(token.split(".")[1]));
@@ -44,8 +40,6 @@ const parseJwt = (token: string) => {
 export const AdminDashboard = () => {
   const token = useAppStore((state) => state.token);
   const setToken = useAppStore((state) => state.setToken);
-
-  // SEPET KONTROLLERİ (Store'dan geliyor)
   const cart = useAppStore((state) => state.cart);
   const addToCart = useAppStore((state) => state.addToCart);
   const removeFromCart = useAppStore((state) => state.removeFromCart);
@@ -62,13 +56,14 @@ export const AdminDashboard = () => {
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // Veri State'leri
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ events: [] });
   const [waiterCalls, setWaiterCalls] = useState<any[]>([]);
 
-  // POS & Düzenleme
+  // POS & Form States
   const [posCategory, setPosCategory] = useState<string>("all");
   const [posTable, setPosTable] = useState("");
   const [posSelectedProduct, setPosSelectedProduct] = useState<Product | null>(
@@ -77,7 +72,6 @@ export const AdminDashboard = () => {
   const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
-  // Ürün & Kategori
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: "",
@@ -85,9 +79,6 @@ export const AdminDashboard = () => {
     price: 0,
     image: "",
     category: "",
-    allergens: [],
-    ingredients: [],
-    extras: [],
   });
   const [categoryName, setCategoryName] = useState("");
   const [isEditingCategory, setIsEditingCategory] = useState(false);
@@ -95,35 +86,32 @@ export const AdminDashboard = () => {
     null,
   );
 
+  const fetchData = async () => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const [ordRes, statRes, prodRes, catRes] = await Promise.all([
+        axios.get(`${API_URL}/api/orders`, config),
+        axios.get(`${API_URL}/api/stats`, config),
+        axios.get(`${API_URL}/api/products`),
+        axios.get(`${API_URL}/api/categories`),
+      ]);
+      setOrders(ordRes.data);
+      setStats(statRes.data);
+      setProducts(prodRes.data);
+      setCategories(catRes.data);
+    } catch (e) {
+      console.error("Veri çekme hatası.");
+    }
+  };
+
   useEffect(() => {
     if (!token) {
       navigate("/admin-login");
       return;
     }
-
-    const fetchData = async () => {
-      try {
-        const [ordRes, statRes, prodRes, catRes] = await Promise.all([
-          axios.get("/api/orders", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get("/api/stats", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get("/api/products"),
-          axios.get("/api/categories"),
-        ]);
-        setOrders(ordRes.data);
-        setStats(statRes.data);
-        setProducts(prodRes.data);
-        setCategories(catRes.data);
-      } catch (e) {
-        console.error("Veri çekme hatası.");
-      }
-    };
     fetchData();
 
-    const socket = io(window.location.origin);
+    const socket = io(API_URL || window.location.origin);
     socket.on("new_order", (order) => {
       setOrders((prev) => [order, ...prev]);
       if (userRole !== "garson")
@@ -134,193 +122,148 @@ export const AdminDashboard = () => {
         { id: Date.now(), table: data.table, time: new Date() },
         ...prev,
       ]);
-      if (userRole === "garson" || userRole === "admin")
-        toast.success(`Masa Çağrısı: ${data.table}`, { icon: "🔔" });
+      toast.success(`Masa Çağrısı: ${data.table}`, { icon: "🔔" });
     });
-
     return () => {
       socket.disconnect();
     };
-  }, [token, navigate, userRole]);
+  }, [token]);
 
-  // --- SİPARİŞ AKSİYONLARI ---
-  const updateOrderStatus = async (id: string, status: string) => {
+  // --- ACTIONS ---
+  const handleProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      await axios.put(
-        `/api/orders/${id}/status`,
-        { status },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      setOrders(orders.map((o) => (o._id === id ? { ...o, status } : o)));
-      toast.success("Durum güncellendi.");
-    } catch (e) {
-      toast.error("Hata oluştu.");
-    }
-  };
-
-  const deleteOrder = async (id: string) => {
-    if (
-      !window.confirm(
-        "Bu siparişi kalıcı olarak silmek istediğinize emin misiniz?",
-      )
-    )
-      return;
-    try {
-      await axios.delete(`/api/orders/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      if (isEditing) {
+        await axios.put(
+          `${API_URL}/api/products/${formData._id}`,
+          formData,
+          config,
+        );
+      } else {
+        await axios.post(`${API_URL}/api/products`, formData, config);
+      }
+      toast.success("Başarılı!");
+      setIsEditing(false);
+      setFormData({
+        name: "",
+        description: "",
+        price: 0,
+        image: "",
+        category: "",
       });
-      setOrders(orders.filter((o) => o._id !== id));
-      toast.success("Sipariş DB üzerinden silindi.");
-    } catch (e) {
-      toast.error("Silme başarısız.");
+      fetchData();
+    } catch (err) {
+      toast.error("Hata!");
     }
   };
 
-  // Düzenleme Başlat (Sepete Geri Yükle)
+  const deleteProduct = async (id: string) => {
+    if (!window.confirm("Silinsin mi?")) return;
+    await axios.delete(`${API_URL}/api/products/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    fetchData();
+  };
+
+  const handleCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const slug = categoryName.toLowerCase().replace(/\s+/g, "-");
+    const config = { headers: { Authorization: `Bearer ${token}` } };
+    if (isEditingCategory) {
+      await axios.put(
+        `${API_URL}/api/categories/${editingCategoryId}`,
+        { name: categoryName, slug },
+        config,
+      );
+    } else {
+      await axios.post(
+        `${API_URL}/api/categories`,
+        { name: categoryName, slug },
+        config,
+      );
+    }
+    setCategoryName("");
+    setIsEditingCategory(false);
+    fetchData();
+  };
+
+  const updateOrderStatus = async (id: string, status: string) => {
+    await axios.put(
+      `${API_URL}/api/orders/${id}/status`,
+      { status },
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    fetchData();
+    toast.success("Güncellendi");
+  };
+
   const startEditOrder = (order: any) => {
     clearCart();
     setIsEditingOrder(true);
     setEditingOrderId(order._id);
     setPosTable(order.tableNumber.replace("Masa ", ""));
-
     order.items.forEach((item: any) => {
-      const productData = products.find(
-        (p) => p._id === item.product || p._id === item.product?._id,
+      const p = products.find(
+        (prod) => prod._id === (item.product?._id || item.product),
       );
-      if (productData) {
-        addToCart(productData, item.quantity, item.note, item.selectedExtras);
-      }
+      if (p) addToCart(p, item.quantity, item.note, item.selectedExtras);
     });
     setActiveTab("pos");
-    toast("Sipariş düzenleme modunda.", { icon: "✏️" });
   };
 
   const getItemPrice = (item: any) => {
-    const basePrice = Number(item.product?.price) || 0;
-    const extrasPrice =
+    const base = Number(item.product?.price) || 0;
+    const extras =
       item.selectedExtras?.reduce(
-        (sum: number, ex: any) => sum + (Number(ex.price) || 0),
+        (s: number, e: any) => s + (Number(e.price) || 0),
         0,
       ) || 0;
-    return basePrice + extrasPrice;
+    return base + extras;
   };
 
   const handlePosSubmit = async () => {
-    if (!posTable.trim()) return toast.error("Masa no girin!");
-    if (cart.length === 0) return toast.error("Sepet boş!");
-
-    const totalAmount = cart.reduce(
-      (sum, item) => sum + getItemPrice(item) * item.quantity,
-      0,
-    );
-
+    if (!posTable.trim() || cart.length === 0)
+      return toast.error("Eksik bilgi!");
     const orderData = {
-      tableNumber: posTable.toLowerCase().includes("masa")
-        ? posTable
-        : `Masa ${posTable}`,
-      totalAmount,
-      items: cart.map((item) => ({
-        product: item.product._id,
-        quantity: item.quantity,
-        price: getItemPrice(item),
-        note: item.note || "",
-        selectedExtras: item.selectedExtras || [],
+      tableNumber: posTable.includes("Masa") ? posTable : `Masa ${posTable}`,
+      totalAmount: cart.reduce((s, i) => s + getItemPrice(i) * i.quantity, 0),
+      items: cart.map((i) => ({
+        product: i.product._id,
+        quantity: i.quantity,
+        price: getItemPrice(i),
+        note: i.note,
+        selectedExtras: i.selectedExtras,
       })),
     };
-
     try {
-      if (isEditingOrder && editingOrderId) {
-        await axios.put(`/api/orders/${editingOrderId}`, orderData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        toast.success("Sipariş güncellendi!");
-      } else {
-        await axios.post(
-          "/api/orders",
-          { ...orderData, status: "Beklemede" },
-          { headers: { Authorization: `Bearer ${token}` } },
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      if (isEditingOrder)
+        await axios.put(
+          `${API_URL}/api/orders/${editingOrderId}`,
+          orderData,
+          config,
         );
-        toast.success("Sipariş mutfağa iletildi!");
-      }
+      else
+        await axios.post(
+          `${API_URL}/api/orders`,
+          { ...orderData, status: "Beklemede" },
+          config,
+        );
       clearCart();
       setPosTable("");
       setIsEditingOrder(false);
-      setEditingOrderId(null);
-      const ordRes = await axios.get("/api/orders", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOrders(ordRes.data);
+      fetchData();
       setActiveTab("orders");
     } catch (e) {
       toast.error("Hata!");
     }
   };
 
-  // --- ÜRÜN & KATEGORİ ---
-  const handleProductSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (isEditing && formData._id) {
-        await axios.put(`/api/products/${formData._id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        toast.success("Güncellendi.");
-      } else {
-        await axios.post("/api/products", formData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        toast.success("Eklendi.");
-      }
-      const prodRes = await axios.get("/api/products");
-      setProducts(prodRes.data);
-      setIsEditing(false);
-    } catch (err) {
-      toast.error("Hata!");
-    }
-  };
-
-  const handleCategorySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const slug = categoryName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, "")
-        .replace(/\s+/g, "-");
-      if (isEditingCategory && editingCategoryId) {
-        await axios.put(
-          `/api/categories/${editingCategoryId}`,
-          { name: categoryName, slug },
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-      } else {
-        await axios.post(
-          "/api/categories",
-          { name: categoryName, slug },
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-      }
-      const catRes = await axios.get("/api/categories");
-      setCategories(catRes.data);
-      setCategoryName("");
-      setIsEditingCategory(false);
-    } catch (err) {
-      toast.error("Hata!");
-    }
-  };
-
-  const handleLogout = () => {
-    setToken(null);
-    clearCart();
-    navigate("/");
-  };
-
-  // --- İSTATİSTİK DÜZELTMELERİ ---
+  // --- STATS CALCULATION ---
   const dynamicStats = useMemo(() => {
-    const completedOrders = orders.filter((o) => o.status === "Tamamlandı");
-    const totalRevenue = completedOrders.reduce(
-      (sum, o) => sum + o.totalAmount,
-      0,
-    );
+    const completed = orders.filter((o) => o.status === "Tamamlandı");
+    const revenue = completed.reduce((s, o) => s + o.totalAmount, 0);
     const last7Days = [...Array(7)]
       .map((_, i) => {
         const d = new Date();
@@ -331,77 +274,30 @@ export const AdminDashboard = () => {
         });
       })
       .reverse();
-    const dailyRevenueData = last7Days.map((dateStr) => {
-      const dayOrders = completedOrders.filter(
-        (o) =>
-          new Date(o.createdAt).toLocaleDateString("tr-TR", {
-            day: "2-digit",
-            month: "short",
-          }) === dateStr,
-      );
-      return dayOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    });
-
-    // SİLİNMİŞ ÜRÜN HATASI DÜZELTİLDİ
-    const productSales: Record<string, number> = {};
-    completedOrders.forEach((order) => {
-      order.items.forEach((item: any) => {
-        const productObj = products.find(
-          (p) => p._id === item.product || p._id === item.product?._id,
-        );
-        const pName = productObj ? productObj.name : "Eski Kayıt Ürünü";
-        productSales[pName] = (productSales[pName] || 0) + item.quantity;
-      });
-    });
-    const popularProductsData = Object.entries(productSales)
-      .map(([name, count]) => ({ name, value: count }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-
-    // SEPETE EKLEME VERİSİ DÜZELTİLDİ
-    const views =
-      stats.events?.find((e: any) => e._id === "view")?.count ||
-      orders.length * 3 + 5;
-    const directCarts =
-      stats.events?.find((e: any) => e._id === "cart_add")?.count || 0;
-    const totalItemsInAllOrders = orders.reduce(
-      (sum, o) => sum + o.items.length,
-      0,
+    const dailyData = last7Days.map((dStr) =>
+      completed
+        .filter(
+          (o) =>
+            new Date(o.createdAt).toLocaleDateString("tr-TR", {
+              day: "2-digit",
+              month: "short",
+            }) === dStr,
+        )
+        .reduce((s, o) => s + o.totalAmount, 0),
     );
-    const carts = directCarts > 0 ? directCarts : totalItemsInAllOrders + 2;
+    return { revenue, last7Days, dailyData, count: orders.length };
+  }, [orders]);
 
-    const conversionRate = ((orders.length / (views || 1)) * 100).toFixed(1);
-    return {
-      totalRevenue,
-      last7Days,
-      dailyRevenueData,
-      popularProductsData,
-      views,
-      carts,
-      conversionRate,
-    };
-  }, [orders, products, stats]);
-
-  // Grafik Ayarları
-  const revenueChartOption = {
-    title: { text: "Günlük Gelir", left: "center" },
+  const chartOption = {
     xAxis: { type: "category", data: dynamicStats.last7Days },
     yAxis: { type: "value" },
     series: [
       {
-        data: dynamicStats.dailyRevenueData,
+        data: dynamicStats.dailyData,
         type: "line",
         smooth: true,
-        color: "#63AC22",
-        areaStyle: { opacity: 0.1 },
+        color: "#FF6B00",
       },
-    ],
-  };
-  const popularChartOption = {
-    title: { text: "En Çok Satanlar", left: "center" },
-    tooltip: { trigger: "item" },
-    series: [
-      { type: "pie", radius: "50%", data: dynamicStats.popularProductsData },
     ],
   };
 
@@ -409,346 +305,279 @@ export const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans">
-      <SEO title="Restoran Yönetimi" description="Kumpir Salad Panel" />
+      <SEO title="Kumpir Salad Yönetim" />
 
-      {/* SIDEBAR (ROL BAZLI FİLTRELEME) */}
+      {/* SIDEBAR */}
       <div
-        className={`${isSidebarOpen ? "w-64" : "w-20"} bg-[#06392E] text-white flex flex-col shadow-2xl z-20 transition-all duration-300`}>
+        className={`${isSidebarOpen ? "w-64" : "w-20"} bg-[#06392E] text-white flex flex-col transition-all duration-300 shadow-2xl z-30`}>
         <div className="p-6 border-b border-white/10 flex items-center justify-center">
-          <div className="w-10 h-10 bg-brand-orange rounded-xl flex items-center justify-center font-black">
+          <div className="w-10 h-10 bg-[#FF6B00] rounded-xl flex items-center justify-center font-black">
             KS
           </div>
           {isSidebarOpen && (
-            <span className="ml-3 font-bold uppercase tracking-widest">
-              {userRole} PANEL
+            <span className="ml-3 font-black tracking-tighter">
+              ADMİN PANEL
             </span>
           )}
         </div>
-
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {/* Herkes Yeni Sipariş Oluşturabilir */}
+        <nav className="flex-1 p-4 space-y-2">
           <button
             onClick={() => setActiveTab("pos")}
-            className={`w-full flex items-center ${isSidebarOpen ? "justify-start px-4" : "justify-center"} py-3.5 rounded-xl font-bold ${activeTab === "pos" ? "bg-brand-orange text-white" : "text-gray-400 hover:bg-white/5"}`}>
-            <Plus size={22} className="shrink-0" />{" "}
+            className={`w-full flex items-center p-4 rounded-2xl font-bold ${activeTab === "pos" ? "bg-[#FF6B00]" : "hover:bg-white/5"}`}>
+            <Plus size={22} />{" "}
             {isSidebarOpen && <span className="ml-3">Hızlı Adisyon</span>}
           </button>
-
-          {/* Sadece Garson ve Admin Masa Çağrılarını Görür */}
-          {(userRole === "admin" || userRole === "garson") && (
-            <button
-              onClick={() => setActiveTab("waiter")}
-              className={`w-full flex items-center ${isSidebarOpen ? "justify-start px-4" : "justify-center"} py-3.5 rounded-xl font-bold ${activeTab === "waiter" ? "bg-brand-orange text-white" : "text-gray-400 hover:bg-white/5"}`}>
-              <BellRing size={22} className="shrink-0" />{" "}
-              {isSidebarOpen && <span className="ml-3">Masa Çağrıları</span>}
-            </button>
-          )}
-
-          {/* Kasa, Garson ve Admin Siparişleri Yönetebilir */}
+          <button
+            onClick={() => setActiveTab("waiter")}
+            className={`w-full flex items-center p-4 rounded-2xl font-bold ${activeTab === "waiter" ? "bg-[#FF6B00]" : "hover:bg-white/5"}`}>
+            <BellRing size={22} />{" "}
+            {isSidebarOpen && <span className="ml-3">Masa Çağrıları</span>}
+          </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`w-full flex items-center ${isSidebarOpen ? "justify-start px-4" : "justify-center"} py-3.5 rounded-xl font-bold ${activeTab === "orders" ? "bg-brand-orange text-white" : "text-gray-400 hover:bg-white/5"}`}>
-            <ShoppingBag size={22} className="shrink-0" />{" "}
+            className={`w-full flex items-center p-4 rounded-2xl font-bold ${activeTab === "orders" ? "bg-[#FF6B00]" : "hover:bg-white/5"}`}>
+            <ShoppingBag size={22} />{" "}
             {isSidebarOpen && <span className="ml-3">Tüm Siparişler</span>}
           </button>
-
-          {/* Sadece Admin Menü ve İstatistikleri Görür */}
           {userRole === "admin" && (
             <div className="pt-4 border-t border-white/5 mt-4 space-y-2">
               <button
                 onClick={() => setActiveTab("categories")}
-                className={`w-full flex items-center ${isSidebarOpen ? "justify-start px-4" : "justify-center"} py-3 rounded-xl font-bold ${activeTab === "categories" ? "bg-brand-orange text-white" : "text-gray-400 hover:bg-white/5"}`}>
+                className={`w-full flex items-center p-4 rounded-2xl font-bold ${activeTab === "categories" ? "bg-[#FF6B00]" : "hover:bg-white/5"}`}>
                 <FolderTree size={20} />{" "}
                 {isSidebarOpen && <span className="ml-3">Kategoriler</span>}
               </button>
               <button
                 onClick={() => setActiveTab("menu")}
-                className={`w-full flex items-center ${isSidebarOpen ? "justify-start px-4" : "justify-center"} py-3 rounded-xl font-bold ${activeTab === "menu" ? "bg-brand-orange text-white" : "text-gray-400 hover:bg-white/5"}`}>
+                className={`w-full flex items-center p-4 rounded-2xl font-bold ${activeTab === "menu" ? "bg-[#FF6B00]" : "hover:bg-white/5"}`}>
                 <Utensils size={20} />{" "}
                 {isSidebarOpen && <span className="ml-3">Menü Ayarları</span>}
               </button>
               <button
                 onClick={() => setActiveTab("stats")}
-                className={`w-full flex items-center ${isSidebarOpen ? "justify-start px-4" : "justify-center"} py-3 rounded-xl font-bold ${activeTab === "stats" ? "bg-brand-orange text-white" : "text-gray-400 hover:bg-white/5"}`}>
+                className={`w-full flex items-center p-4 rounded-2xl font-bold ${activeTab === "stats" ? "bg-[#FF6B00]" : "hover:bg-white/5"}`}>
                 <LayoutDashboard size={20} />{" "}
                 {isSidebarOpen && <span className="ml-3">Raporlar</span>}
               </button>
             </div>
           )}
         </nav>
-
         <div className="p-4">
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center p-3 text-red-400 hover:bg-red-500/10 rounded-xl font-bold">
+            onClick={() => {
+              setToken(null);
+              navigate("/");
+            }}
+            className="w-full flex items-center justify-center p-3 text-red-400 font-black">
             <LogOut size={20} />{" "}
             {isSidebarOpen && <span className="ml-2">Çıkış</span>}
           </button>
         </div>
       </div>
 
-      {/* İÇERİK PANELİ */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white/80 backdrop-blur-md shadow-sm p-4 lg:px-8 flex justify-between items-center z-10 border-b">
+        <header className="bg-white border-b p-4 flex justify-between items-center px-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+              className="p-2 bg-gray-100 rounded-lg">
               <ChevronLeft className={!isSidebarOpen ? "rotate-180" : ""} />
             </button>
-            <h1 className="text-xl font-black text-gray-800 uppercase tracking-tight">
-              {activeTab}
-            </h1>
+            <h1 className="text-xl font-black uppercase">{activeTab}</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="bg-brand-green/10 text-brand-green px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
-              {userRole}
-            </div>
+          <div className="bg-green-100 text-green-700 px-4 py-1 rounded-full text-xs font-black">
+            {userRole?.toUpperCase()}
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50/50">
-          {/* POS EKRANI (GARSON & KASA) */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+          {/* TAB: POS */}
           {activeTab === "pos" && (
             <div className="flex flex-col xl:flex-row gap-8 h-full">
               <div className="flex-1 space-y-6">
                 {isEditingOrder && (
-                  <div className="bg-blue-600 text-white p-5 rounded-3xl flex justify-between items-center shadow-xl border-b-4 border-blue-800 animate-pulse">
-                    <p className="font-black flex items-center gap-3 text-lg">
-                      <Edit3 size={24} /> DÜZENLEME MODU: SİPARİŞİ GÜNCELLEYİN
-                    </p>
+                  <div className="bg-blue-600 text-white p-4 rounded-2xl font-black animate-pulse flex justify-between">
+                    DÜZENLEME MODU AKTİF{" "}
                     <button
                       onClick={() => {
                         setIsEditingOrder(false);
-                        setEditingOrderId(null);
                         clearCart();
-                        setPosTable("");
                       }}
-                      className="bg-white text-blue-600 px-6 py-2 rounded-xl font-black shadow-md">
+                      className="bg-white text-blue-600 px-4 rounded-lg">
                       İPTAL
                     </button>
                   </div>
                 )}
-
-                <div className="flex overflow-x-auto pb-2 gap-3 hide-scrollbar">
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   <button
                     onClick={() => setPosCategory("all")}
-                    className={`whitespace-nowrap px-6 py-3 rounded-2xl font-black shadow-sm ${posCategory === "all" ? "bg-brand-dark text-white" : "bg-white text-gray-500"}`}>
+                    className={`px-6 py-2 rounded-xl font-black ${posCategory === "all" ? "bg-black text-white" : "bg-white"}`}>
                     TÜMÜ
                   </button>
-                  {categories.map((cat) => (
+                  {categories.map((c) => (
                     <button
-                      key={cat._id}
-                      onClick={() => setPosCategory(cat._id)}
-                      className={`whitespace-nowrap px-6 py-3 rounded-2xl font-black shadow-sm ${posCategory === cat._id ? "bg-brand-dark text-white" : "bg-white text-gray-500"}`}>
-                      {cat.name.toUpperCase()}
+                      key={c._id}
+                      onClick={() => setPosCategory(c._id)}
+                      className={`px-6 py-2 rounded-xl font-black ${posCategory === c._id ? "bg-black text-white" : "bg-white"}`}>
+                      {c.name.toUpperCase()}
                     </button>
                   ))}
                 </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-24">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {products
                     .filter(
                       (p) =>
                         posCategory === "all" ||
-                        p.category === posCategory ||
-                        p.category?._id === posCategory,
+                        (typeof p.category === "string"
+                          ? p.category === posCategory
+                          : (p.category as any)?._id === posCategory),
                     )
-                    .map((product) => (
+                    .map((p) => (
                       <div
-                        key={product._id}
-                        onClick={() => setPosSelectedProduct(product)}
-                        className="bg-white rounded-3xl p-4 shadow-sm border-b-4 border-gray-100 hover:border-brand-orange hover:shadow-xl transition-all cursor-pointer group">
+                        key={p._id}
+                        onClick={() => setPosSelectedProduct(p)}
+                        className="bg-white p-4 rounded-[30px] shadow-sm border-b-4 hover:border-[#FF6B00] cursor-pointer transition-all">
                         <img
-                          src={product.image}
-                          className="w-full h-28 object-cover rounded-2xl mb-3 group-hover:scale-105 transition-transform"
+                          src={p.image}
+                          className="w-full h-24 object-cover rounded-2xl mb-2"
                         />
-                        <h4 className="font-black text-gray-800 text-sm leading-tight h-10 mb-2">
-                          {product.name}
+                        <h4 className="font-black text-xs h-8 overflow-hidden">
+                          {p.name}
                         </h4>
-                        <p className="text-brand-orange font-black text-lg">
-                          {product.price.toFixed(2)} ₺
-                        </p>
+                        <p className="text-[#FF6B00] font-black">{p.price} ₺</p>
                       </div>
                     ))}
                 </div>
               </div>
-
-              {/* ADİSYON SEPETİ (SİLME HATASI BURADA DÜZELTİLDİ) */}
-              <div className="w-full xl:w-96 bg-white rounded-[40px] shadow-2xl border flex flex-col shrink-0 h-[calc(100vh-12rem)] sticky top-0 overflow-hidden">
-                <div className="p-8 border-b bg-gray-50 flex justify-between items-center">
-                  <h3 className="text-2xl font-black text-gray-800">ADİSYON</h3>
-                  <button
-                    onClick={clearCart}
-                    className="text-red-500 font-black text-xs hover:underline">
-                    TEMİZLE
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                  {cart.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-50">
-                      <ShoppingCart size={64} className="mb-4" />
-                      <p className="font-black uppercase tracking-widest text-sm">
-                        Ürün Seçilmedi
-                      </p>
-                    </div>
-                  ) : (
-                    cart.map((item, idx) => (
-                      <div
-                        key={item.id || idx}
-                        className="bg-gray-50 border p-4 rounded-3xl flex flex-col gap-3 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-orange"></div>
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 ml-2">
-                            <p className="font-black text-gray-800 text-base leading-tight mb-1">
-                              {item.product.name}
-                            </p>
-                            {item.selectedExtras?.map((ex: any, i: any) => (
-                              <span
-                                key={i}
-                                className="text-[10px] text-gray-400 font-bold block uppercase">
-                                + {ex.name}
-                              </span>
-                            ))}
-                            {item.note && (
-                              <p className="text-[10px] text-red-500 font-black italic mt-1 leading-tight">
-                                "{item.note}"
-                              </p>
-                            )}
-                          </div>
-                          <p className="font-black text-brand-orange text-base">
-                            {(getItemPrice(item) * item.quantity).toFixed(2)} ₺
-                          </p>
-                        </div>
-                        <div className="flex justify-between items-center pt-3 border-t mt-1">
-                          <span className="text-xs font-black text-gray-400">
-                            {item.quantity} ADET
-                          </span>
-
-                          {/* SİLME BUTONU DÜZELTİLDİ: item.id kullanılıyor */}
-                          <button
-                            onClick={() => removeFromCart(item.id)}
-                            className="text-white bg-red-500 p-2 rounded-xl shadow-lg shadow-red-500/30 hover:scale-110 active:scale-95 transition-all">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+              <div className="w-full xl:w-96 bg-white rounded-[40px] shadow-2xl border flex flex-col p-6 h-fit sticky top-0">
+                <h3 className="font-black text-xl mb-4">ADİSYON</h3>
+                <div className="flex-1 space-y-4 mb-6 max-h-[40vh] overflow-y-auto">
+                  {cart.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between items-center bg-gray-50 p-3 rounded-2xl border-l-4 border-[#FF6B00]">
+                      <div className="flex-1">
+                        <p className="font-black text-xs">
+                          {item.product.name}
+                        </p>
+                        <p className="text-[10px] text-gray-400">
+                          {item.quantity} Adet
+                        </p>
                       </div>
-                    ))
-                  )}
+                      <p className="font-black text-sm mr-2">
+                        {getItemPrice(item) * item.quantity} ₺
+                      </p>
+                      <button
+                        onClick={() => removeFromCart(item.id)}
+                        className="text-red-500">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-
-                <div className="p-8 bg-gray-100 border-t space-y-6">
-                  <div className="flex justify-between items-end">
-                    <span className="text-gray-400 font-black uppercase text-xs tracking-widest">
-                      Genel Toplam
-                    </span>
-                    <span className="text-4xl font-black text-brand-green">
-                      {cart
-                        .reduce((a, b) => a + getItemPrice(b) * b.quantity, 0)
-                        .toFixed(2)}{" "}
-                      ₺
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="MASA NUMARASI (ÖRN: 5)"
-                    value={posTable}
-                    onChange={(e) => setPosTable(e.target.value)}
-                    className="w-full bg-white border-2 border-gray-300 rounded-2xl px-6 py-4 font-black text-xl text-center focus:border-brand-orange transition-all outline-none"
-                  />
-                  <button
-                    onClick={handlePosSubmit}
-                    className={`w-full ${isEditingOrder ? "bg-blue-600" : "bg-brand-orange"} text-white py-5 rounded-2xl font-black text-xl shadow-2xl transition-all active:scale-95 uppercase tracking-widest`}>
-                    {isEditingOrder ? "GÜNCELLE" : "MUTFAĞA GÖNDER"}
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  placeholder="MASA NO"
+                  value={posTable}
+                  onChange={(e) => setPosTable(e.target.value)}
+                  className="w-full border-2 p-4 rounded-2xl mb-4 font-black text-center text-2xl focus:border-[#FF6B00] outline-none"
+                />
+                <button
+                  onClick={handlePosSubmit}
+                  className="w-full bg-[#06392E] text-white py-5 rounded-2xl font-black text-xl shadow-xl uppercase">
+                  {isEditingOrder ? "GÜNCELLE" : "MUTFAĞA GÖNDER"}
+                </button>
               </div>
             </div>
           )}
 
-          {/* SİPARİŞ LİSTESİ */}
+          {/* TAB: WAITER CALLS */}
+          {activeTab === "waiter" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {waiterCalls.length > 0 ? (
+                waiterCalls.map((call) => (
+                  <div
+                    key={call.id}
+                    className="bg-white p-8 rounded-[40px] shadow-xl border-t-8 border-orange-500 text-center relative overflow-hidden">
+                    <BellRing
+                      className="mx-auto mb-4 text-orange-500 animate-bounce"
+                      size={48}
+                    />
+                    <h2 className="text-4xl font-black">{call.table}</h2>
+                    <p className="text-gray-400 font-bold mt-2">
+                      {new Date(call.time).toLocaleTimeString()}
+                    </p>
+                    <button
+                      onClick={() =>
+                        setWaiterCalls(
+                          waiterCalls.filter((c) => c.id !== call.id),
+                        )
+                      }
+                      className="mt-6 w-full bg-black text-white py-3 rounded-2xl font-black">
+                      TAMAMLANDI
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-3 text-center py-20 opacity-20 font-black text-4xl uppercase tracking-widest">
+                  Bekleyen Çağrı Yok
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: ORDERS */}
           {activeTab === "orders" && (
-            <div className="bg-white rounded-[40px] shadow-2xl border overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-100">
-                <thead className="bg-gray-50 font-black text-gray-400 text-[10px] uppercase tracking-widest">
+            <div className="bg-white rounded-[40px] shadow-xl border overflow-hidden">
+              <table className="min-w-full divide-y">
+                <thead className="bg-gray-50 font-black text-[10px] text-gray-400 uppercase">
                   <tr>
                     <th className="px-8 py-6 text-left">MASA</th>
-                    <th className="px-8 py-6 text-left">ADİSYON DETAYI</th>
+                    <th className="px-8 py-6 text-left">DETAY</th>
                     <th className="px-8 py-6 text-left">TUTAR</th>
-                    <th className="px-8 py-6 text-left">DURUM</th>
                     <th className="px-8 py-6 text-right">İŞLEMLER</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {orders.map((order) => (
-                    <tr
-                      key={order._id}
-                      className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-8 py-6">
-                        <span className="bg-[#06392E] text-white px-5 py-2 rounded-2xl font-black text-lg shadow-lg">
-                          {order.tableNumber}
+                <tbody className="divide-y">
+                  {orders.map((o) => (
+                    <tr key={o._id} className="hover:bg-gray-50">
+                      <td className="px-8 py-6 font-black">
+                        <span className="bg-[#06392E] text-white px-4 py-2 rounded-xl">
+                          {o.tableNumber}
                         </span>
                       </td>
                       <td className="px-8 py-6">
-                        {order.items.map((i: any, idx: number) => {
-                          const productData = products.find(
-                            (p) =>
-                              p._id === i.product || p._id === i.product?._id,
-                          );
-                          return (
-                            <div
-                              key={idx}
-                              className="text-sm font-bold text-gray-700">
-                              <span className="text-brand-orange">
-                                {i.quantity}x
-                              </span>{" "}
-                              {productData?.name || "Katalog Dışı Ürün"}
-                            </div>
-                          );
-                        })}
+                        {o.items.map((i: any, idx: number) => (
+                          <div key={idx} className="text-xs font-bold">
+                            <span className="text-[#FF6B00]">
+                              {i.quantity}x
+                            </span>{" "}
+                            {products.find(
+                              (p) => p._id === (i.product?._id || i.product),
+                            )?.name || "Ürün"}
+                          </div>
+                        ))}
                       </td>
-                      <td className="px-8 py-6 font-black text-brand-orange text-xl">
-                        {order.totalAmount.toFixed(2)} ₺
+                      <td className="px-8 py-6 font-black text-lg text-[#FF6B00]">
+                        {o.totalAmount.toFixed(2)} ₺
                       </td>
-                      <td className="px-8 py-6">
-                        <span
-                          className={`px-4 py-2 rounded-full text-[10px] font-black uppercase ${
-                            order.status === "Beklemede"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : order.status === "Hazırlanıyor"
-                                ? "bg-blue-100 text-blue-700"
-                                : order.status === "Tamamlandı"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-red-100 text-red-700"
-                          }`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6 text-right space-x-3">
-                        <div className="flex items-center justify-end gap-3">
-                          <select
-                            value={order.status}
-                            onChange={(e) =>
-                              updateOrderStatus(order._id, e.target.value)
-                            }
-                            className="border-2 rounded-xl px-3 py-2 text-xs font-black bg-white cursor-pointer focus:border-brand-orange outline-none">
-                            <option value="Beklemede">BEKLEMEDE</option>
-                            <option value="Hazırlanıyor">MUTFAKTA</option>
-                            <option value="Tamamlandı">ÖDENDİ</option>
-                            <option value="İptal">İPTAL</option>
-                          </select>
-                          <button
-                            onClick={() => startEditOrder(order)}
-                            className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                            <Edit3 size={18} />
-                          </button>
-                          <button
-                            onClick={() => deleteOrder(order._id)}
-                            className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
+                      <td className="px-8 py-6 text-right space-x-2">
+                        <select
+                          value={o.status}
+                          onChange={(e) =>
+                            updateOrderStatus(o._id, e.target.value)
+                          }
+                          className={`border rounded-xl p-2 text-[10px] font-black ${o.status === "Beklemede" ? "bg-yellow-50" : "bg-green-50"}`}>
+                          <option value="Beklemede">BEKLEMEDE</option>
+                          <option value="Hazırlanıyor">MUTFAKTA</option>
+                          <option value="Tamamlandı">ÖDENDİ</option>
+                          <option value="İptal">İPTAL</option>
+                        </select>
+                        <button
+                          onClick={() => startEditOrder(o)}
+                          className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                          <Edit3 size={18} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -757,26 +586,24 @@ export const AdminDashboard = () => {
             </div>
           )}
 
-          {/* DİĞER TABLAR (Kategori, Ürün, İstatistik) */}
+          {/* TAB: CATEGORIES */}
           {activeTab === "categories" && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
               <div className="bg-white p-8 rounded-[40px] shadow-xl border h-fit">
-                <h3 className="text-2xl font-black mb-8 uppercase tracking-tighter">
-                  {isEditingCategory ? "Kategoriyi Düzenle" : "Yeni Kategori"}
+                <h3 className="text-xl font-black mb-6 uppercase">
+                  {isEditingCategory ? "Düzenle" : "Yeni Kategori"}
                 </h3>
-                <form onSubmit={handleCategorySubmit} className="space-y-6">
+                <form onSubmit={handleCategorySubmit} className="space-y-4">
                   <input
                     type="text"
                     required
                     value={categoryName}
                     onChange={(e) => setCategoryName(e.target.value)}
-                    className="w-full border-2 rounded-2xl px-6 py-4 font-black"
-                    placeholder="İSİM"
+                    className="w-full border-2 rounded-2xl p-4 font-black"
+                    placeholder="KATEGORİ ADI"
                   />
-                  <button
-                    type="submit"
-                    className="w-full bg-brand-green text-white py-4 rounded-2xl font-black text-lg shadow-xl uppercase">
-                    {isEditingCategory ? "Güncelle" : "Oluştur"}
+                  <button className="w-full bg-[#06392E] text-white py-4 rounded-2xl font-black shadow-lg uppercase">
+                    {isEditingCategory ? "Güncelle" : "Ekle"}
                   </button>
                 </form>
               </div>
@@ -785,7 +612,7 @@ export const AdminDashboard = () => {
                   <tbody className="divide-y">
                     {categories.map((c) => (
                       <tr key={c._id} className="hover:bg-gray-50">
-                        <td className="px-10 py-6 font-black text-gray-700 text-lg uppercase">
+                        <td className="px-10 py-6 font-black uppercase">
                           {c.name}
                         </td>
                         <td className="px-10 py-6 text-right space-x-4">
@@ -795,12 +622,24 @@ export const AdminDashboard = () => {
                               setIsEditingCategory(true);
                               setEditingCategoryId(c._id);
                             }}
-                            className="text-blue-500 font-black uppercase text-xs">
+                            className="text-blue-500 font-black text-xs uppercase">
                             Düzenle
                           </button>
                           <button
-                            onClick={() => deleteCategory(c._id)}
-                            className="text-red-500 font-black uppercase text-xs">
+                            onClick={async () => {
+                              if (confirm("Silinsin mi?")) {
+                                await axios.delete(
+                                  `${API_URL}/api/categories/${c._id}`,
+                                  {
+                                    headers: {
+                                      Authorization: `Bearer ${token}`,
+                                    },
+                                  },
+                                );
+                                fetchData();
+                              }
+                            }}
+                            className="text-red-500 font-black text-xs uppercase">
                             Sil
                           </button>
                         </td>
@@ -812,11 +651,12 @@ export const AdminDashboard = () => {
             </div>
           )}
 
+          {/* TAB: MENU SETTINGS */}
           {activeTab === "menu" && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="bg-white p-8 rounded-[40px] shadow-xl border">
-                <h3 className="text-2xl font-black mb-8 uppercase tracking-tighter">
-                  Ürün Ayarları
+              <div className="bg-white p-8 rounded-[40px] shadow-xl border h-fit">
+                <h3 className="font-black text-xl mb-6 uppercase">
+                  {isEditing ? "Ürünü Düzenle" : "Yeni Ürün"}
                 </h3>
                 <form onSubmit={handleProductSubmit} className="space-y-4">
                   <input
@@ -826,7 +666,7 @@ export const AdminDashboard = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full border-2 rounded-2xl px-5 py-3 font-bold"
+                    className="w-full border-2 rounded-2xl p-3 font-bold"
                     placeholder="ÜRÜN ADI"
                   />
                   <textarea
@@ -835,8 +675,8 @@ export const AdminDashboard = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className="w-full border-2 rounded-2xl px-5 py-3 font-bold h-24"
-                    placeholder="İÇERİK"
+                    className="w-full border-2 rounded-2xl p-3 font-bold h-20"
+                    placeholder="AÇIKLAMA"
                   />
                   <input
                     type="number"
@@ -848,8 +688,8 @@ export const AdminDashboard = () => {
                         price: Number(e.target.value),
                       })
                     }
-                    className="w-full border-2 rounded-2xl px-5 py-3 font-bold"
-                    placeholder="FİYAT ₺"
+                    className="w-full border-2 rounded-2xl p-3 font-bold"
+                    placeholder="FİYAT"
                   />
                   <select
                     required
@@ -857,8 +697,8 @@ export const AdminDashboard = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, category: e.target.value })
                     }
-                    className="w-full border-2 rounded-2xl px-5 py-3 font-bold bg-white">
-                    <option value="">KATEGORİ SEÇ</option>
+                    className="w-full border-2 rounded-2xl p-3 font-bold bg-white">
+                    <option value="">KATEGORİ</option>
                     {categories.map((c) => (
                       <option key={c._id} value={c._id}>
                         {c.name}
@@ -872,13 +712,11 @@ export const AdminDashboard = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, image: e.target.value })
                     }
-                    className="w-full border-2 rounded-2xl px-5 py-3 font-bold"
+                    className="w-full border-2 rounded-2xl p-3 font-bold"
                     placeholder="RESİM URL"
                   />
-                  <button
-                    type="submit"
-                    className="w-full bg-brand-orange text-white py-4 rounded-2xl font-black text-lg shadow-xl uppercase">
-                    {isEditing ? "Bilgileri Güncelle" : "Kataloğa Ekle"}
+                  <button className="w-full bg-[#FF6B00] text-white py-4 rounded-2xl font-black shadow-xl uppercase">
+                    {isEditing ? "Güncelle" : "Kataloğa Ekle"}
                   </button>
                 </form>
               </div>
@@ -886,38 +724,38 @@ export const AdminDashboard = () => {
                 {products.map((p) => (
                   <div
                     key={p._id}
-                    className="bg-white border-2 rounded-[30px] p-5 flex items-center gap-5 hover:border-brand-orange transition-all">
+                    className="bg-white border-2 rounded-[30px] p-5 flex items-center gap-4 hover:border-[#FF6B00]">
                     <img
                       src={p.image}
-                      className="w-20 h-20 rounded-2xl object-cover shadow-md"
+                      className="w-16 h-16 rounded-xl object-cover"
                     />
                     <div className="flex-1">
-                      <p className="font-black text-gray-800 text-lg leading-tight mb-1">
+                      <p className="font-black text-sm leading-tight">
                         {p.name}
                       </p>
-                      <p className="text-brand-orange font-black">
+                      <p className="text-[#FF6B00] font-black text-sm">
                         {p.price} ₺
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       <button
                         onClick={() => {
                           setFormData({
                             ...p,
                             category:
                               typeof p.category === "object"
-                                ? p.category._id
+                                ? (p.category as any)._id
                                 : p.category,
                           });
                           setIsEditing(true);
                         }}
-                        className="p-3 text-blue-600 bg-blue-50 rounded-2xl hover:bg-blue-600 hover:text-white transition-all">
-                        <Edit3 size={18} />
+                        className="p-2 text-blue-600">
+                        <Edit3 size={16} />
                       </button>
                       <button
                         onClick={() => deleteProduct(p._id)}
-                        className="p-3 text-red-600 bg-red-50 rounded-2xl hover:bg-red-600 hover:text-white transition-all">
-                        <Trash2 size={18} />
+                        className="p-2 text-red-600">
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
@@ -926,107 +764,51 @@ export const AdminDashboard = () => {
             </div>
           )}
 
-          {activeTab === "waiter" && (
-            <div className="bg-white rounded-[50px] p-12 shadow-2xl border text-center min-h-[60vh] flex flex-col items-center justify-center space-y-8">
-              {waiterCalls.length > 0 ? (
-                <>
-                  <div className="w-32 h-32 bg-orange-100 text-brand-orange rounded-full flex items-center justify-center animate-pulse shadow-inner">
-                    <BellRing size={64} />
-                  </div>
-                  <h2 className="text-5xl font-black text-gray-800 tracking-tighter">
-                    MASALAR SİZİ BEKLİYOR!
-                  </h2>
-                  <div className="flex flex-wrap justify-center gap-6">
-                    {waiterCalls.map((call) => (
-                      <div
-                        key={call.id}
-                        className="bg-brand-orange text-white px-12 py-8 rounded-[40px] shadow-2xl text-3xl font-black transform hover:scale-105 transition-all flex flex-col items-center">
-                        {call.table.toUpperCase()}{" "}
-                        <span className="text-sm font-medium opacity-80 mt-2">
-                          {new Date(call.time).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => setWaiterCalls([])}
-                    className="text-gray-400 font-black uppercase tracking-widest hover:text-gray-800 transition-colors pt-8">
-                    Tümünü İlgilenildi İşaretle
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="w-32 h-32 bg-green-50 text-brand-green rounded-full flex items-center justify-center shadow-inner">
-                    <Utensils size={64} />
-                  </div>
-                  <h2 className="text-4xl font-black text-gray-800 tracking-tighter uppercase">
-                    Her Şey Yolunda
-                  </h2>
-                  <p className="text-gray-400 font-bold uppercase tracking-widest">
-                    Şu an bekleyen bir çağrı yok.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-
+          {/* TAB: STATS */}
           {activeTab === "stats" && (
-            <div className="space-y-8 animate-in fade-in duration-1000">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-[#06392E] p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 -mr-8 -mt-8 rounded-full"></div>
-                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-2 opacity-50">
-                    Haftalık Gelir
+                  <h3 className="text-[10px] font-black uppercase opacity-60 mb-2">
+                    Toplam Ciro
                   </h3>
                   <p className="text-4xl font-black">
-                    {dynamicStats.totalRevenue.toFixed(2)} ₺
+                    {dynamicStats.revenue.toFixed(2)} ₺
                   </p>
+                  <TrendingUp
+                    className="absolute bottom-4 right-4 opacity-10"
+                    size={60}
+                  />
                 </div>
-                <div className="bg-white p-8 rounded-[40px] shadow-xl border-b-8 border-brand-green">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-2 text-gray-400">
-                    Adisyon
+                <div className="bg-white p-8 rounded-[40px] shadow-xl border-b-8 border-[#FF6B00]">
+                  <h3 className="text-[10px] font-black uppercase text-gray-400 mb-2">
+                    Toplam Adisyon
                   </h3>
                   <p className="text-4xl font-black text-gray-800">
-                    {orders.length}
+                    {dynamicStats.count}
                   </p>
                 </div>
                 <div className="bg-white p-8 rounded-[40px] shadow-xl border-b-8 border-blue-500">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-2 text-gray-400">
-                    Dönüşüm
+                  <h3 className="text-[10px] font-black uppercase text-gray-400 mb-2">
+                    Görüntülenme
                   </h3>
                   <p className="text-4xl font-black text-gray-800">
-                    %{dynamicStats.conversionRate}
-                  </p>
-                </div>
-                <div className="bg-white p-8 rounded-[40px] shadow-xl border-b-8 border-purple-500">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-2 text-gray-400">
-                    Sepete Ekleme
-                  </h3>
-                  <p className="text-4xl font-black text-gray-800">
-                    {dynamicStats.carts}
+                    {stats.events?.find((e: any) => e._id === "view")?.count ||
+                      0}
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-10 rounded-[40px] shadow-xl border">
-                  <ReactECharts
-                    option={revenueChartOption}
-                    style={{ height: "400px" }}
-                  />
-                </div>
-                <div className="bg-white p-10 rounded-[40px] shadow-xl border">
-                  <ReactECharts
-                    option={popularChartOption}
-                    style={{ height: "400px" }}
-                  />
-                </div>
+              <div className="bg-white p-8 rounded-[40px] shadow-xl border">
+                <ReactECharts
+                  option={chartOption}
+                  style={{ height: "400px" }}
+                />
               </div>
             </div>
           )}
         </main>
       </div>
 
-      {/* MODAL */}
       {posSelectedProduct && (
         <ProductModal
           product={posSelectedProduct}
