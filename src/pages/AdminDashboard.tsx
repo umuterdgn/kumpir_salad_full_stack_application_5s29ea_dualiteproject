@@ -56,6 +56,7 @@ export const AdminDashboard = () => {
     () => (token ? parseJwt(token)?.role : null),
     [token],
   );
+  console.log("ROLE:", userRole);
 
   const [activeTab, setActiveTab] = useState(
     userRole === "garson" ? "pos" : "orders",
