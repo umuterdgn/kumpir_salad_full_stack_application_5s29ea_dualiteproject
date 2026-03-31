@@ -14,12 +14,7 @@ import {
   ChevronLeft,
   Edit3,
   FolderTree,
-  ShoppingCart,
   TrendingUp,
-  Eye,
-  Percent,
-  Layers,
-  Image as ImageIcon,
 } from "lucide-react";
 import { SEO } from "../components/SEO";
 import { ProductModal } from "../components/ProductModal";
@@ -72,6 +67,7 @@ export const AdminDashboard = () => {
   const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
+  // --- ÜRÜN FORM STATES ---
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: "",
@@ -79,7 +75,14 @@ export const AdminDashboard = () => {
     price: 0,
     image: "",
     category: "",
+    extras: [], // Ekstralar array olarak başlatıldı
   });
+
+  // Ekstra ekleme inputları için geçici stateler
+  const [newExtraName, setNewExtraName] = useState("");
+  const [newExtraPrice, setNewExtraPrice] = useState<number | "">("");
+
+  // --- KATEGORİ FORM STATES ---
   const [categoryName, setCategoryName] = useState("");
   const [isEditingCategory, setIsEditingCategory] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
@@ -129,6 +132,43 @@ export const AdminDashboard = () => {
     };
   }, [token]);
 
+  // --- EKSTRA (EXTRAS) YÖNETİMİ FONKSİYONLARI ---
+  const handleAddExtra = () => {
+    if (!newExtraName.trim() || newExtraPrice === "") {
+      toast.error("Lütfen ekstra adı ve fiyatını girin.");
+      return;
+    }
+    setFormData({
+      ...formData,
+      extras: [
+        ...(formData.extras || []),
+        { name: newExtraName, price: Number(newExtraPrice) },
+      ],
+    });
+    setNewExtraName("");
+    setNewExtraPrice("");
+  };
+
+  const handleRemoveExtra = (index: number) => {
+    const updatedExtras = [...(formData.extras || [])];
+    updatedExtras.splice(index, 1);
+    setFormData({ ...formData, extras: updatedExtras });
+  };
+
+  const cancelEditingProduct = () => {
+    setIsEditing(false);
+    setFormData({
+      name: "",
+      description: "",
+      price: 0,
+      image: "",
+      category: "",
+      extras: [],
+    });
+    setNewExtraName("");
+    setNewExtraPrice("");
+  };
+
   // --- ACTIONS ---
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,14 +184,7 @@ export const AdminDashboard = () => {
         await axios.post(`${API_URL}/api/products`, formData, config);
       }
       toast.success("Başarılı!");
-      setIsEditing(false);
-      setFormData({
-        name: "",
-        description: "",
-        price: 0,
-        image: "",
-        category: "",
-      });
+      cancelEditingProduct();
       fetchData();
     } catch (err) {
       toast.error("Hata!");
@@ -297,8 +330,16 @@ export const AdminDashboard = () => {
         type: "line",
         smooth: true,
         color: "#FF6B00",
+        areaStyle: {
+          color: "rgba(255, 107, 0, 0.1)",
+        },
+        lineStyle: {
+          width: 3,
+        },
       },
     ],
+    grid: { left: "3%", right: "4%", bottom: "3%", containLabel: true },
+    tooltip: { trigger: "axis" },
   };
 
   if (!token) return null;
@@ -368,7 +409,7 @@ export const AdminDashboard = () => {
               setToken(null);
               navigate("/");
             }}
-            className="w-full flex items-center justify-center p-3 text-red-400 font-black">
+            className="w-full flex items-center justify-center p-3 text-red-400 font-black hover:bg-red-50 rounded-xl transition-all">
             <LogOut size={20} />{" "}
             {isSidebarOpen && <span className="ml-2">Çıkış</span>}
           </button>
@@ -376,54 +417,71 @@ export const AdminDashboard = () => {
       </div>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b p-4 flex justify-between items-center px-8">
+        <header className="bg-white border-b p-4 flex justify-between items-center px-8 h-20 shadow-sm z-10">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 bg-gray-100 rounded-lg">
+              className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all">
               <ChevronLeft className={!isSidebarOpen ? "rotate-180" : ""} />
             </button>
-            <h1 className="text-xl font-black uppercase">{activeTab}</h1>
+            <h1 className="text-xl font-black uppercase tracking-tight">
+              {activeTab === "pos"
+                ? "Hızlı Adisyon"
+                : activeTab === "waiter"
+                  ? "Masa Çağrıları"
+                  : activeTab === "orders"
+                    ? "Siparişler"
+                    : activeTab === "categories"
+                      ? "Kategoriler"
+                      : activeTab === "menu"
+                        ? "Menü Ayarları"
+                        : "Raporlar"}
+            </h1>
           </div>
-          <div className="bg-green-100 text-green-700 px-4 py-1 rounded-full text-xs font-black">
-            {userRole?.toUpperCase()}
+          <div className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider">
+            {userRole}
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50">
           {/* TAB: POS */}
           {activeTab === "pos" && (
             <div className="flex flex-col xl:flex-row gap-8 h-full">
               <div className="flex-1 space-y-6">
                 {isEditingOrder && (
-                  <div className="bg-blue-600 text-white p-4 rounded-2xl font-black animate-pulse flex justify-between">
-                    DÜZENLEME MODU AKTİF{" "}
+                  <div className="bg-blue-600 text-white p-4 rounded-2xl font-black animate-pulse flex justify-between items-center shadow-lg">
+                    <span>
+                      DÜZENLEME MODU AKTİF (Sipariş ID:{" "}
+                      {editingOrderId?.slice(-5)})
+                    </span>
                     <button
                       onClick={() => {
                         setIsEditingOrder(false);
                         clearCart();
+                        setEditingOrderId(null);
+                        setPosTable("");
                       }}
-                      className="bg-white text-blue-600 px-4 rounded-lg">
-                      İPTAL
+                      className="bg-white text-blue-600 px-5 py-2 rounded-xl font-bold text-sm hover:bg-opacity-90 transition-all">
+                      İPTAL ET
                     </button>
                   </div>
                 )}
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
                   <button
                     onClick={() => setPosCategory("all")}
-                    className={`px-6 py-2 rounded-xl font-black ${posCategory === "all" ? "bg-black text-white" : "bg-white"}`}>
+                    className={`px-6 py-2.5 rounded-full font-black text-sm whitespace-nowrap transition-all ${posCategory === "all" ? "bg-black text-white shadow-md" : "bg-white hover:bg-gray-100"}`}>
                     TÜMÜ
                   </button>
                   {categories.map((c) => (
                     <button
                       key={c._id}
                       onClick={() => setPosCategory(c._id)}
-                      className={`px-6 py-2 rounded-xl font-black ${posCategory === c._id ? "bg-black text-white" : "bg-white"}`}>
+                      className={`px-6 py-2.5 rounded-full font-black text-sm whitespace-nowrap transition-all ${posCategory === c._id ? "bg-black text-white shadow-md" : "bg-white hover:bg-gray-100"}`}>
                       {c.name.toUpperCase()}
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {products
                     .filter(
                       (p) =>
@@ -436,76 +494,115 @@ export const AdminDashboard = () => {
                       <div
                         key={p._id}
                         onClick={() => setPosSelectedProduct(p)}
-                        className="bg-white p-4 rounded-[30px] shadow-sm border-b-4 hover:border-[#FF6B00] cursor-pointer transition-all">
+                        className="bg-white p-4 rounded-[30px] shadow-sm border-b-4 border-white hover:border-[#FF6B00] cursor-pointer transition-all hover:shadow-lg flex flex-col">
                         <img
                           src={p.image}
-                          className="w-full h-24 object-cover rounded-2xl mb-2"
+                          className="w-full h-32 object-cover rounded-2xl mb-3"
+                          alt={p.name}
                         />
-                        <h4 className="font-black text-xs h-8 overflow-hidden">
+                        <h4 className="font-black text-sm h-10 overflow-hidden leading-tight text-gray-800 mb-1">
                           {p.name}
                         </h4>
-                        <p className="text-[#FF6B00] font-black">{p.price} ₺</p>
+                        <p className="text-[#FF6B00] font-black text-lg mt-auto">
+                          {p.price.toFixed(2)} ₺
+                        </p>
                       </div>
                     ))}
                 </div>
               </div>
-              <div className="w-full xl:w-96 bg-white rounded-[40px] shadow-2xl border flex flex-col p-6 h-fit sticky top-0">
-                <h3 className="font-black text-xl mb-4">ADİSYON</h3>
-                <div className="flex-1 space-y-4 mb-6 max-h-[40vh] overflow-y-auto">
+              <div className="w-full xl:w-96 bg-white rounded-[40px] shadow-2xl border flex flex-col p-8 h-fit sticky top-4">
+                <h3 className="font-black text-2xl mb-6 uppercase tracking-tighter">
+                  ADİSYON
+                </h3>
+                <div className="flex-1 space-y-4 mb-6 max-h-[45vh] overflow-y-auto pr-2 scrollbar-thin">
                   {cart.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex justify-between items-center bg-gray-50 p-3 rounded-2xl border-l-4 border-[#FF6B00]">
-                      <div className="flex-1">
-                        <p className="font-black text-xs">
+                      className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border-l-4 border-[#FF6B00] shadow-sm">
+                      <div className="flex-1 mr-2">
+                        <p className="font-black text-sm text-gray-800 leading-tight">
                           {item.product.name}
                         </p>
-                        <p className="text-[10px] text-gray-400">
-                          {item.quantity} Adet
+                        {item.selectedExtras?.map((ex, exIdx) => (
+                          <span
+                            key={exIdx}
+                            className="block text-[11px] text-gray-500 font-bold mt-0.5">
+                            + {ex.name} (+{ex.price}₺)
+                          </span>
+                        ))}
+                        <p className="text-xs text-gray-400 font-bold mt-1.5">
+                          {item.quantity} Adet x {getItemPrice(item).toFixed(2)}{" "}
+                          ₺
                         </p>
                       </div>
-                      <p className="font-black text-sm mr-2">
-                        {getItemPrice(item) * item.quantity} ₺
-                      </p>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-red-500">
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="text-right flex flex-col items-end gap-2">
+                        <p className="font-black text-lg text-gray-900 whitespace-nowrap">
+                          {(getItemPrice(item) * item.quantity).toFixed(2)} ₺
+                        </p>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="text-red-500 hover:bg-red-100 p-1.5 rounded-lg transition-all">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                   ))}
+                  {cart.length === 0 && (
+                    <div className="text-center py-10 text-gray-400 font-bold italic text-sm border-2 border-dashed rounded-2xl">
+                      Sepet henüz boş.
+                    </div>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  placeholder="MASA NO"
-                  value={posTable}
-                  onChange={(e) => setPosTable(e.target.value)}
-                  className="w-full border-2 p-4 rounded-2xl mb-4 font-black text-center text-2xl focus:border-[#FF6B00] outline-none"
-                />
-                <button
-                  onClick={handlePosSubmit}
-                  className="w-full bg-[#06392E] text-white py-5 rounded-2xl font-black text-xl shadow-xl uppercase">
-                  {isEditingOrder ? "GÜNCELLE" : "MUTFAĞA GÖNDER"}
-                </button>
+
+                <div className="border-t pt-6 mt-auto space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="font-bold text-gray-500">
+                      Toplam Tutar:
+                    </span>
+                    <span className="font-black text-3xl text-[#FF6B00]">
+                      {cart
+                        .reduce((s, i) => s + getItemPrice(i) * i.quantity, 0)
+                        .toFixed(2)}{" "}
+                      ₺
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="MASA NO (Örn: 5)"
+                    value={posTable}
+                    onChange={(e) => setPosTable(e.target.value)}
+                    className="w-full border-2 p-5 rounded-2xl font-black text-center text-3xl focus:border-[#FF6B00] focus:ring-2 focus:ring-orange-100 outline-none transition-all placeholder:text-gray-300"
+                  />
+                  <button
+                    onClick={handlePosSubmit}
+                    disabled={cart.length === 0 || !posTable.trim()}
+                    className="w-full bg-[#06392E] text-white py-5 rounded-2xl font-black text-xl shadow-xl uppercase transition-all hover:bg-opacity-90 disabled:bg-gray-300 disabled:shadow-none disable:cursor-not-allowed">
+                    {isEditingOrder
+                      ? "DEĞİŞİKLİKLERİ KAYDET"
+                      : "SİPARİŞİ MUTFAĞA GÖNDER"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
           {/* TAB: WAITER CALLS */}
           {activeTab === "waiter" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {waiterCalls.length > 0 ? (
                 waiterCalls.map((call) => (
                   <div
                     key={call.id}
-                    className="bg-white p-8 rounded-[40px] shadow-xl border-t-8 border-orange-500 text-center relative overflow-hidden">
+                    className="bg-white p-8 rounded-[40px] shadow-xl border-t-8 border-orange-500 text-center relative overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1">
                     <BellRing
-                      className="mx-auto mb-4 text-orange-500 animate-bounce"
-                      size={48}
+                      className="mx-auto mb-5 text-orange-500 animate-bounce"
+                      size={56}
                     />
-                    <h2 className="text-4xl font-black">{call.table}</h2>
-                    <p className="text-gray-400 font-bold mt-2">
-                      {new Date(call.time).toLocaleTimeString()}
+                    <h2 className="text-5xl font-black text-gray-950 tracking-tighter">
+                      {call.table}
+                    </h2>
+                    <p className="text-gray-400 font-bold mt-3 text-sm">
+                      Çağrı Zamanı: {new Date(call.time).toLocaleTimeString()}
                     </p>
                     <button
                       onClick={() =>
@@ -513,13 +610,13 @@ export const AdminDashboard = () => {
                           waiterCalls.filter((c) => c.id !== call.id),
                         )
                       }
-                      className="mt-6 w-full bg-black text-white py-3 rounded-2xl font-black">
-                      TAMAMLANDI
+                      className="mt-8 w-full bg-black text-white py-4 rounded-2xl font-black text-lg hover:bg-opacity-80 transition-all uppercase tracking-wide">
+                      HİZMET TAMAMLANDI
                     </button>
                   </div>
                 ))
               ) : (
-                <div className="col-span-3 text-center py-20 opacity-20 font-black text-4xl uppercase tracking-widest">
+                <div className="col-span-3 text-center py-32 opacity-30 font-black text-5xl uppercase tracking-widest text-gray-400 bg-white rounded-[40px] shadow-inner border-2 border-dashed">
                   Bekleyen Çağrı Yok
                 </div>
               )}
@@ -529,45 +626,55 @@ export const AdminDashboard = () => {
           {/* TAB: ORDERS */}
           {activeTab === "orders" && (
             <div className="bg-white rounded-[40px] shadow-xl border overflow-hidden">
-              <table className="min-w-full divide-y">
-                <thead className="bg-gray-50 font-black text-[10px] text-gray-400 uppercase">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50 font-black text-[11px] text-gray-500 uppercase tracking-wider">
                   <tr>
-                    <th className="px-8 py-6 text-left">MASA</th>
-                    <th className="px-8 py-6 text-left">DETAY</th>
-                    <th className="px-8 py-6 text-left">TUTAR</th>
-                    <th className="px-8 py-6 text-right">İŞLEMLER</th>
+                    <th className="px-8 py-6 text-left">MASA NO</th>
+                    <th className="px-8 py-6 text-left">SİPARİŞ DETAYI</th>
+                    <th className="px-8 py-6 text-left">TOPLAM TUTAR</th>
+                    <th className="px-8 py-6 text-right">DURUM / İŞLEM</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-gray-100">
                   {orders.map((o) => (
-                    <tr key={o._id} className="hover:bg-gray-50">
+                    <tr
+                      key={o._id}
+                      className="hover:bg-gray-50 transition-colors">
                       <td className="px-8 py-6 font-black">
-                        <span className="bg-[#06392E] text-white px-4 py-2 rounded-xl">
+                        <span className="bg-[#06392E] text-white px-5 py-2.5 rounded-xl text-sm whitespace-nowrap">
                           {o.tableNumber}
                         </span>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-8 py-6 space-y-1">
                         {o.items.map((i: any, idx: number) => (
-                          <div key={idx} className="text-xs font-bold">
-                            <span className="text-[#FF6B00]">
+                          <div
+                            key={idx}
+                            className="text-xs font-bold text-gray-700">
+                            <span className="text-[#FF6B00] font-black mr-1">
                               {i.quantity}x
                             </span>{" "}
                             {products.find(
                               (p) => p._id === (i.product?._id || i.product),
-                            )?.name || "Ürün"}
+                            )?.name || "Bilinmeyen Ürün"}
+                            {i.selectedExtras?.length > 0 && (
+                              <span className="text-gray-400 text-[10px] ml-1">
+                                {" "}
+                                (+{i.selectedExtras.length} Ekstra)
+                              </span>
+                            )}
                           </div>
                         ))}
                       </td>
-                      <td className="px-8 py-6 font-black text-lg text-[#FF6B00]">
+                      <td className="px-8 py-6 font-black text-xl text-[#FF6B00] whitespace-nowrap">
                         {o.totalAmount.toFixed(2)} ₺
                       </td>
-                      <td className="px-8 py-6 text-right space-x-2">
+                      <td className="px-8 py-6 text-right space-x-2 whitespace-nowrap">
                         <select
                           value={o.status}
                           onChange={(e) =>
                             updateOrderStatus(o._id, e.target.value)
                           }
-                          className={`border rounded-xl p-2 text-[10px] font-black ${o.status === "Beklemede" ? "bg-yellow-50" : "bg-green-50"}`}>
+                          className={`border-2 rounded-xl p-2.5 text-xs font-black outline-none focus:ring-2 transition-all ${o.status === "Beklemede" ? "bg-yellow-50 border-yellow-200 text-yellow-800 focus:ring-yellow-100" : o.status === "Hazırlanıyor" ? "bg-blue-50 border-blue-200 text-blue-800 focus:ring-blue-100" : o.status === "Tamamlandı" ? "bg-green-50 border-green-200 text-green-800 focus:ring-green-100" : "bg-red-50 border-red-200 text-red-800 focus:ring-red-100"}`}>
                           <option value="Beklemede">BEKLEMEDE</option>
                           <option value="Hazırlanıyor">MUTFAKTA</option>
                           <option value="Tamamlandı">ÖDENDİ</option>
@@ -575,71 +682,137 @@ export const AdminDashboard = () => {
                         </select>
                         <button
                           onClick={() => startEditOrder(o)}
-                          className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                          title="Siparişi Düzenle"
+                          className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
                           <Edit3 size={18} />
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* TAB: CATEGORIES */}
-          {activeTab === "categories" && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="bg-white p-8 rounded-[40px] shadow-xl border h-fit">
-                <h3 className="text-xl font-black mb-6 uppercase">
-                  {isEditingCategory ? "Düzenle" : "Yeni Kategori"}
-                </h3>
-                <form onSubmit={handleCategorySubmit} className="space-y-4">
-                  <input
-                    type="text"
-                    required
-                    value={categoryName}
-                    onChange={(e) => setCategoryName(e.target.value)}
-                    className="w-full border-2 rounded-2xl p-4 font-black"
-                    placeholder="KATEGORİ ADI"
-                  />
-                  <button className="w-full bg-[#06392E] text-white py-4 rounded-2xl font-black shadow-lg uppercase">
-                    {isEditingCategory ? "Güncelle" : "Ekle"}
-                  </button>
-                </form>
-              </div>
-              <div className="xl:col-span-2 bg-white rounded-[40px] shadow-xl border overflow-hidden">
-                <table className="min-w-full divide-y">
-                  <tbody className="divide-y">
-                    {categories.map((c) => (
-                      <tr key={c._id} className="hover:bg-gray-50">
-                        <td className="px-10 py-6 font-black uppercase">
-                          {c.name}
-                        </td>
-                        <td className="px-10 py-6 text-right space-x-4">
-                          <button
-                            onClick={() => {
-                              setCategoryName(c.name);
-                              setIsEditingCategory(true);
-                              setEditingCategoryId(c._id);
-                            }}
-                            className="text-blue-500 font-black text-xs uppercase">
-                            Düzenle
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (confirm("Silinsin mi?")) {
+                        <button
+                          onClick={async () => {
+                            if (
+                              confirm(
+                                "Bu siparişi kalıcı olarak silmek istediğinize emin misiniz?",
+                              )
+                            ) {
+                              try {
                                 await axios.delete(
-                                  `${API_URL}/api/categories/${c._id}`,
+                                  `${API_URL}/api/orders/${o._id}`,
                                   {
                                     headers: {
                                       Authorization: `Bearer ${token}`,
                                     },
                                   },
                                 );
+                                toast.success("Sipariş silindi.");
                                 fetchData();
+                              } catch (e) {
+                                toast.error("Silinemedi.");
+                              }
+                            }
+                          }}
+                          title="Siparişi Sil"
+                          className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all">
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {orders.length === 0 && (
+                <div className="text-center py-20 text-gray-400 font-bold italic border-t">
+                  Henüz sipariş bulunmuyor.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: CATEGORIES */}
+          {activeTab === "categories" && (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              <div className="bg-white p-8 rounded-[40px] shadow-xl border h-fit sticky top-4">
+                <h3 className="text-2xl font-black mb-8 uppercase tracking-tighter">
+                  {isEditingCategory
+                    ? "Kategoriyi Düzenle"
+                    : "Yeni Kategori Ekle"}
+                </h3>
+                <form onSubmit={handleCategorySubmit} className="space-y-5">
+                  <input
+                    type="text"
+                    required
+                    value={categoryName}
+                    onChange={(e) => setCategoryName(e.target.value)}
+                    className="w-full border-2 rounded-2xl p-4 font-black text-lg focus:border-[#FF6B00] outline-none transition-all placeholder:text-gray-300"
+                    placeholder="KATEGORİ ADI (Örn: İçecekler)"
+                  />
+                  <button className="w-full bg-[#06392E] text-white py-4.5 rounded-2xl font-black text-lg shadow-xl uppercase transition-all hover:bg-opacity-90">
+                    {isEditingCategory
+                      ? "DEĞİŞİKLİKLERİ KAYDET"
+                      : "KATEGORİYİ OLUŞTUR"}
+                  </button>
+                  {isEditingCategory && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingCategory(false);
+                        setCategoryName("");
+                        setEditingCategoryId(null);
+                      }}
+                      className="w-full text-gray-400 font-bold uppercase text-xs pt-2 hover:text-gray-600 transition-all">
+                      İptal Et
+                    </button>
+                  )}
+                </form>
+              </div>
+              <div className="xl:col-span-2 bg-white rounded-[40px] shadow-xl border overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-100">
+                  <thead className="bg-gray-50 font-black text-[11px] text-gray-500 uppercase tracking-wider">
+                    <tr>
+                      <th className="px-10 py-6 text-left">KATEGORİ ADI</th>
+                      <th className="px-10 py-6 text-right">İŞLEMLER</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {categories.map((c) => (
+                      <tr
+                        key={c._id}
+                        className="hover:bg-gray-50 transition-colors">
+                        <td className="px-10 py-7 font-black text-lg text-gray-800 uppercase tracking-tight">
+                          {c.name}
+                        </td>
+                        <td className="px-10 py-7 text-right space-x-3 whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setCategoryName(c.name);
+                              setIsEditingCategory(true);
+                              setEditingCategoryId(c._id);
+                            }}
+                            className="text-blue-500 font-black text-xs uppercase bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-600 hover:text-white transition-all">
+                            Düzenle
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (
+                                confirm(
+                                  `${c.name} kategorisini silmek istediğinize emin misiniz? Bu kategoriye ait ürünler kategorisiz kalacaktır.`,
+                                )
+                              ) {
+                                try {
+                                  await axios.delete(
+                                    `${API_URL}/api/categories/${c._id}`,
+                                    {
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    },
+                                  );
+                                  toast.success("Kategori silindi.");
+                                  fetchData();
+                                } catch (e) {
+                                  toast.error("Silinemedi.");
+                                }
                               }
                             }}
-                            className="text-red-500 font-black text-xs uppercase">
+                            className="text-red-500 font-black text-xs uppercase bg-red-50 px-4 py-2 rounded-lg hover:bg-red-600 hover:text-white transition-all">
                             Sil
                           </button>
                         </td>
@@ -647,6 +820,11 @@ export const AdminDashboard = () => {
                     ))}
                   </tbody>
                 </table>
+                {categories.length === 0 && (
+                  <div className="text-center py-20 text-gray-400 font-bold italic border-t">
+                    Henüz kategori bulunmuyor.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -654,9 +832,9 @@ export const AdminDashboard = () => {
           {/* TAB: MENU SETTINGS */}
           {activeTab === "menu" && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="bg-white p-8 rounded-[40px] shadow-xl border h-fit">
-                <h3 className="font-black text-xl mb-6 uppercase">
-                  {isEditing ? "Ürünü Düzenle" : "Yeni Ürün"}
+              <div className="bg-white p-8 rounded-[40px] shadow-xl border h-fit sticky top-4">
+                <h3 className="font-black text-2xl mb-8 uppercase tracking-tighter">
+                  {isEditing ? "Ürünü Düzenle" : "Yeni Ürün Ekle"}
                 </h3>
                 <form onSubmit={handleProductSubmit} className="space-y-4">
                   <input
@@ -666,8 +844,8 @@ export const AdminDashboard = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full border-2 rounded-2xl p-3 font-bold"
-                    placeholder="ÜRÜN ADI"
+                    className="w-full border-2 rounded-2xl p-4 font-bold focus:border-[#FF6B00] outline-none transition-all placeholder:text-gray-300"
+                    placeholder="ÜRÜN ADI (Örn: Klasik Kumpir)"
                   />
                   <textarea
                     required
@@ -675,33 +853,43 @@ export const AdminDashboard = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className="w-full border-2 rounded-2xl p-3 font-bold h-20"
-                    placeholder="AÇIKLAMA"
+                    className="w-full border-2 rounded-2xl p-4 font-bold h-24 resize-none focus:border-[#FF6B00] outline-none transition-all placeholder:text-gray-300"
+                    placeholder="ÜRÜN AÇIKLAMASI / İÇERİĞİ"
                   />
-                  <input
-                    type="number"
-                    required
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        price: Number(e.target.value),
-                      })
-                    }
-                    className="w-full border-2 rounded-2xl p-3 font-bold"
-                    placeholder="FİYAT"
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      required
+                      value={formData.price || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          price: Number(e.target.value),
+                        })
+                      }
+                      className="w-full border-2 rounded-2xl p-4 pl-12 font-black text-xl focus:border-[#FF6B00] outline-none transition-all placeholder:text-gray-300"
+                      placeholder="0.00"
+                    />
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-xl text-gray-400">
+                      ₺
+                    </span>
+                  </div>
                   <select
                     required
                     value={formData.category as string}
                     onChange={(e) =>
                       setFormData({ ...formData, category: e.target.value })
                     }
-                    className="w-full border-2 rounded-2xl p-3 font-bold bg-white">
-                    <option value="">KATEGORİ</option>
+                    className="w-full border-2 rounded-2xl p-4 font-bold bg-white focus:border-[#FF6B00] outline-none transition-all appearance-none text-gray-700">
+                    <option value="" className="text-gray-300">
+                      KATEGORİ SEÇİN
+                    </option>
                     {categories.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
+                      <option
+                        key={c._id}
+                        value={c._id}
+                        className="text-gray-800 font-bold">
+                        {c.name.toUpperCase()}
                       </option>
                     ))}
                   </select>
@@ -712,32 +900,129 @@ export const AdminDashboard = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, image: e.target.value })
                     }
-                    className="w-full border-2 rounded-2xl p-3 font-bold"
-                    placeholder="RESİM URL"
+                    className="w-full border-2 rounded-2xl p-4 font-bold focus:border-[#FF6B00] outline-none transition-all placeholder:text-gray-300"
+                    placeholder="RESİM URL (Örn: https://resim.com/kumpir.jpg)"
                   />
-                  <button className="w-full bg-[#FF6B00] text-white py-4 rounded-2xl font-black shadow-xl uppercase">
-                    {isEditing ? "Güncelle" : "Kataloğa Ekle"}
+
+                  {/* --- EKSTRALAR (Kataloğa Ekle Butonunun Hemen Üstü) --- */}
+                  <div className="border-2 rounded-3xl p-6 bg-gray-50 border-gray-100 mt-6 shadow-inner">
+                    <h4 className="font-black text-sm mb-4 text-gray-600 uppercase tracking-wider">
+                      Ürün Ekstraları (Opsiyonel)
+                    </h4>
+                    <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                      <input
+                        type="text"
+                        value={newExtraName}
+                        onChange={(e) => setNewExtraName(e.target.value)}
+                        placeholder="Örn: Kaşar"
+                        className="flex-1 border-2 rounded-xl p-3 font-bold text-sm outline-none focus:border-[#FF6B00] bg-white transition-all placeholder:text-gray-300 shadow-sm"
+                      />
+                      <div className="flex gap-3">
+                        <input
+                          type="number"
+                          value={newExtraPrice}
+                          onChange={(e) =>
+                            setNewExtraPrice(
+                              e.target.value ? Number(e.target.value) : "",
+                            )
+                          }
+                          placeholder="₺ Tutar"
+                          className="w-24 border-2 rounded-xl p-3 font-black text-sm outline-none focus:border-[#FF6B00] bg-white transition-all text-center placeholder:text-gray-300 shadow-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddExtra}
+                          className="bg-[#06392E] text-white px-6 rounded-xl font-black text-sm hover:bg-[#FF6B00] hover:shadow-lg hover:shadow-orange-500/30 active:scale-95 transition-all whitespace-nowrap flex items-center justify-center gap-2">
+                          <Plus size={18} strokeWidth={3} /> EKLE
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Eklenen Ekstraları Listele */}
+                    {formData.extras && formData.extras.length > 0 ? (
+                      <div className="space-y-2.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
+                        {formData.extras.map((ex, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center bg-white p-3 px-4 rounded-xl border border-gray-100 shadow-sm transition-all hover:border-orange-100">
+                            <span className="font-bold text-sm text-gray-800 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-[#FF6B00]"></span>
+                              {ex.name}
+                            </span>
+                            <div className="flex items-center gap-3">
+                              <span className="font-black text-sm text-[#FF6B00]">
+                                {ex.price.toFixed(2)} ₺
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveExtra(idx)}
+                                className="text-red-500 hover:text-red-700 bg-red-50 p-1.5 rounded-lg transition-all">
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 text-center py-3 font-medium italic border border-dashed rounded-xl bg-white">
+                        Henüz ekstra eklenmedi.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* --- SUBMIT BUTONU --- */}
+                  <button className="w-full bg-[#FF6B00] text-white py-4 rounded-2xl font-black text-xl shadow-xl uppercase mt-8 transition-all hover:bg-orange-600">
+                    {isEditing
+                      ? "DEĞİŞİKLİKLERİ KAYDET"
+                      : "ÜRÜNÜ KATALOĞA EKLE"}
                   </button>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={cancelEditingProduct}
+                      className="w-full text-gray-400 font-bold uppercase text-xs pt-2 hover:text-gray-600 transition-all">
+                      DÜZENLEMEYİ İPTAL ET
+                    </button>
+                  )}
                 </form>
               </div>
-              <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* ÜRÜN LİSTESİ */}
+              <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 h-fit">
                 {products.map((p) => (
                   <div
                     key={p._id}
-                    className="bg-white border-2 rounded-[30px] p-5 flex items-center gap-4 hover:border-[#FF6B00]">
+                    className="bg-white border-2 border-white rounded-[35px] p-6 flex items-start gap-5 hover:border-[#FF6B00] transition-all hover:shadow-lg flex-col sm:flex-row">
                     <img
                       src={p.image}
-                      className="w-16 h-16 rounded-xl object-cover"
+                      className="w-full sm:w-24 h-24 rounded-2xl object-cover shadow-md flex-shrink-0"
+                      alt={p.name}
                     />
-                    <div className="flex-1">
-                      <p className="font-black text-sm leading-tight">
+                    <div className="flex-1 space-y-1.5 w-full">
+                      <p className="font-black text-lg leading-tight text-gray-900">
                         {p.name}
                       </p>
-                      <p className="text-[#FF6B00] font-black text-sm">
-                        {p.price} ₺
+                      <p className="text-[#FF6B00] font-black text-lg">
+                        {p.price.toFixed(2)} ₺
                       </p>
+                      <p className="text-xs text-gray-500 font-medium line-clamp-2">
+                        {p.description}
+                      </p>
+
+                      {/* Ürünün sahip olduğu ekstraları tag olarak göster */}
+                      {p.extras && p.extras.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-2 border-t mt-3">
+                          {p.extras.map((ex, i) => (
+                            <span
+                              key={i}
+                              className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap">
+                              {ex.name} (+{ex.price}₺)
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex sm:flex-col gap-2 w-full sm:w-auto mt-4 sm:mt-0 border-t sm:border-none pt-3 sm:pt-0">
                       <button
                         onClick={() => {
                           setFormData({
@@ -746,20 +1031,30 @@ export const AdminDashboard = () => {
                               typeof p.category === "object"
                                 ? (p.category as any)._id
                                 : p.category,
+                            extras: p.extras || [], // Düzenle dediğimizde ekstraları da çek
                           });
                           setIsEditing(true);
+                          // Sayfayı yukarı taşı (opsiyonel)
+                          window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
-                        className="p-2 text-blue-600">
-                        <Edit3 size={16} />
+                        title="Düzenle"
+                        className="flex-1 sm:flex-none p-3 text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-600 hover:text-white transition-all flex justify-center">
+                        <Edit3 size={18} />
                       </button>
                       <button
                         onClick={() => deleteProduct(p._id)}
-                        className="p-2 text-red-600">
-                        <Trash2 size={16} />
+                        title="Sil"
+                        className="flex-1 sm:flex-none p-3 text-red-600 bg-red-50 rounded-xl hover:bg-red-600 hover:text-white transition-all flex justify-center">
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </div>
                 ))}
+                {products.length === 0 && (
+                  <div className="col-span-2 text-center py-20 text-gray-400 font-bold italic border-2 border-dashed rounded-3xl bg-white">
+                    Henüz ürün bulunmuyor.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -768,40 +1063,45 @@ export const AdminDashboard = () => {
           {activeTab === "stats" && (
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-[#06392E] p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden">
-                  <h3 className="text-[10px] font-black uppercase opacity-60 mb-2">
-                    Toplam Ciro
+                <div className="bg-[#06392E] p-10 rounded-[40px] text-white shadow-2xl relative overflow-hidden transition-all hover:shadow-emerald-950/30">
+                  <h3 className="text-xs font-black uppercase opacity-60 mb-2 tracking-wider">
+                    Toplam Ciro (Başarılı)
                   </h3>
-                  <p className="text-4xl font-black">
+                  <p className="text-5xl font-black tracking-tighter">
                     {dynamicStats.revenue.toFixed(2)} ₺
                   </p>
                   <TrendingUp
-                    className="absolute bottom-4 right-4 opacity-10"
-                    size={60}
+                    className="absolute bottom-5 right-5 opacity-10"
+                    size={80}
                   />
                 </div>
-                <div className="bg-white p-8 rounded-[40px] shadow-xl border-b-8 border-[#FF6B00]">
-                  <h3 className="text-[10px] font-black uppercase text-gray-400 mb-2">
-                    Toplam Adisyon
+                <div className="bg-white p-10 rounded-[40px] shadow-xl border-b-8 border-[#FF6B00]">
+                  <h3 className="text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">
+                    Toplam Sipariş Sayısı
                   </h3>
-                  <p className="text-4xl font-black text-gray-800">
+                  <p className="text-5xl font-black text-gray-800 tracking-tighter">
                     {dynamicStats.count}
                   </p>
                 </div>
-                <div className="bg-white p-8 rounded-[40px] shadow-xl border-b-8 border-blue-500">
-                  <h3 className="text-[10px] font-black uppercase text-gray-400 mb-2">
-                    Görüntülenme
+                <div className="bg-white p-10 rounded-[40px] shadow-xl border-b-8 border-blue-500">
+                  <h3 className="text-xs font-black uppercase text-gray-400 mb-2 tracking-wider">
+                    Site Görüntülenme
                   </h3>
-                  <p className="text-4xl font-black text-gray-800">
+                  <p className="text-5xl font-black text-gray-800 tracking-tighter">
                     {stats.events?.find((e: any) => e._id === "view")?.count ||
                       0}
                   </p>
                 </div>
               </div>
-              <div className="bg-white p-8 rounded-[40px] shadow-xl border">
+              <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100">
+                <h3 className="font-black text-lg mb-6 uppercase text-gray-700 tracking-tight">
+                  Son 7 Günlük Gelir Akışı
+                </h3>
                 <ReactECharts
                   option={chartOption}
-                  style={{ height: "400px" }}
+                  style={{ height: "450px" }}
+                  notMerge={true}
+                  lazyUpdate={true}
                 />
               </div>
             </div>
