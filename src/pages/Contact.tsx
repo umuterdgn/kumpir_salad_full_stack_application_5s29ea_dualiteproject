@@ -73,47 +73,7 @@ export const Contact = () => {
             </div>
           </motion.div>
 
-          {/* Contact Form */}
-          <motion.div 
-            initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}
-            className="lg:w-2/3 bg-white p-10 rounded-3xl shadow-xl border border-gray-100"
-          >
-            <h2 className="text-2xl font-bold text-brand-dark mb-6">Bize Mesaj Gönderin</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Adınız Soyadınız</label>
-                  <input 
-                    type="text" required
-                    value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-all"
-                    placeholder="Ad Soyad"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">E-Posta Adresiniz</label>
-                  <input 
-                    type="email" required
-                    value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-all"
-                    placeholder="ornek@mail.com"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Mesajınız</label>
-                <textarea 
-                  required rows={5}
-                  value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-all resize-none"
-                  placeholder="Size nasıl yardımcı olabiliriz?"
-                />
-              </div>
-              <button type="submit" className="bg-brand-orange text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition-all transform active:scale-95 flex items-center gap-2 w-full justify-center">
-                Gönder <Send size={20} />
-              </button>
-            </form>
-          </motion.div>
+         
         </div>
       </div>
     </div>

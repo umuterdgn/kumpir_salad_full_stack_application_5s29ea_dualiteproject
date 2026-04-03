@@ -18,9 +18,9 @@ export const Footer = () => {
               En taze malzemelerle hazırlanan eşsiz lezzetler. Kumpir ve salatanın mükemmel uyumu.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-300 hover:text-brand-orange transition-colors"><Facebook size={24} /></a>
-              <a href="#" className="text-gray-300 hover:text-brand-orange transition-colors"><Instagram size={24} /></a>
-              <a href="#" className="text-gray-300 hover:text-brand-orange transition-colors"><Twitter size={24} /></a>
+              <a href="https://www.facebook.com/kumpirsaladiskenderun/" className="text-gray-300 hover:text-brand-orange transition-colors"><Facebook size={24} /></a>
+              <a href="https://www.instagram.com/kumpirsaladiskenderun/" className="text-gray-300 hover:text-brand-orange transition-colors"><Instagram size={24} /></a>
+              <a href="https://twitter.com/kumpirsalad" className="text-gray-300 hover:text-brand-orange transition-colors"><Twitter size={24} /></a>
             </div>
           </div>
 
@@ -40,11 +40,16 @@ export const Footer = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="text-brand-green shrink-0 mt-1" size={20} />
                 <span className="text-gray-300">PRİMEMEAL AVM İSKENDERUN, HATAY, Türkiye <br />
-                Karağaç Konarlı Uğurmumcu cad.</span>
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <MapPin className="text-brand-green shrink-0 mt-1" size={20} />
+                <span className="text-gray-300">Karağaç Konarlı mah. Uğurmumcu cad., HATAY, Türkiye <br />
+                </span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="text-brand-green shrink-0" size={20} />
-                <span className="text-gray-300">+90 (212) 555 01 23</span>
+                <span className="text-gray-300">+90 544 619 20 94</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="text-brand-green shrink-0" size={20} />
