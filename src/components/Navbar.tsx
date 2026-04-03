@@ -5,6 +5,7 @@ import { useAppStore } from "../store";
 import { CartDrawer } from "./CartDrawer";
 import { io } from "socket.io-client";
 import toast from "react-hot-toast";
+import logo from "../assets/logo.png";
 
 const socket = io(window.location.origin);
 
@@ -28,20 +29,17 @@ export const Navbar = () => {
 
   return (
     <>
-      {/* BURASI DEĞİŞTİ: sticky, bg-white, border ve shadow kaldırıldı. absolute ve bg-transparent eklendi */}
       <nav className="fixed top-0 w-full z-50 bg-white/60 backdrop-blur-md border-b border-white/20 shadow-sm transition-all duration-300">
-        {" "}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
             <div className="flex items-center">
               <Link to="/" className="flex-shrink-0 flex items-center gap-2">
-                <div className="w-10 h-10 bg-brand-orange rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
-                  KS
-                </div>
-                {/* İPUCU: Arkadaki video koyuysa 'text-brand-dark' yerine 'text-white' yazabilirsin */}
-                <span className="font-bold text-2xl text-brand-dark tracking-tight">
-                  Kumpir Salad
-                </span>
+                {/* BURASI DEĞİŞTİ: Mevcut div ve span yerine img eklendi */}
+                <img 
+                  src={logo} 
+                  alt="Kumpir Salad Logo" 
+                  className="h-12 w-auto object-contain" 
+                />
               </Link>
             </div>
 
