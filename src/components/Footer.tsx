@@ -39,7 +39,8 @@ export const Footer = () => {
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <MapPin className="text-brand-green shrink-0 mt-1" size={20} />
-                <span className="text-gray-300">PRİMEMEAL AVM İSKENDERUN, HATAY, Türkiye</span>
+                <span className="text-gray-300">PRİMEMEAL AVM İSKENDERUN, HATAY, Türkiye <br />
+                Karağaç Konarlı Uğurmumcu cad.</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="text-brand-green shrink-0" size={20} />
@@ -73,7 +74,7 @@ export const Footer = () => {
 
         <div className="border-t border-gray-700 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm">
-            &copy; {new Date().getFullYear()} Kumpir Salad. Tüm hakları saklıdır.
+            &copy; {new Date().getFullYear()} NexiumDMA. Tüm hakları saklıdır.
           </p>
           <div className="mt-4 md:mt-0">
             <Link to="/admin-login" className="text-gray-500 hover:text-brand-orange text-sm transition-colors">
