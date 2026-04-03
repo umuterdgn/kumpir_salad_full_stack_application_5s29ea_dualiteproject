@@ -41,6 +41,15 @@ export const Contact = () => {
                 <p className="text-gray-600">PRİMEMEAL AVM İSKENDERUN, HATAY , Türkiye</p>
               </div>
             </div>
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex items-start gap-4 hover:shadow-md transition-shadow">
+              <div className="bg-orange-100 p-4 rounded-full text-brand-orange shrink-0">
+                <MapPin size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-brand-dark mb-2">Adres</h3>
+                <p className="text-gray-600"> Karağaç Konarlımh Uğurmumcu 9 Karağaç, HATAY , Türkiye</p>
+              </div>
+            </div>
 
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex items-start gap-4 hover:shadow-md transition-shadow">
               <div className="bg-green-100 p-4 rounded-full text-brand-green shrink-0">
