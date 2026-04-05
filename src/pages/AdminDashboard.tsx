@@ -75,8 +75,12 @@ export const AdminDashboard = () => {
     price: 0,
     image: "",
     category: "",
-    extras: [], // Ekstralar array olarak başlatıldı
+    extras: [],
   });
+
+  // --- YENİ EKLENEN SÜRÜKLE BIRAK STATE'LERİ ---
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Ekstra ekleme inputları için geçici stateler
   const [newExtraName, setNewExtraName] = useState("");
@@ -167,27 +171,54 @@ export const AdminDashboard = () => {
     });
     setNewExtraName("");
     setNewExtraPrice("");
+    setImageFile(null); // İptal edildiğinde resim state'ini de temizle
   };
 
   // --- ACTIONS ---
+  // GÜNCELLENEN SUBMIT FONKSİYONU
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      toast.loading("Kaydediliyor...", { id: "product-save" });
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      let finalImageUrl = formData.image;
+
+      // Resim seçildiyse önce Cloudinary'ye gönder
+      if (imageFile) {
+        const uploadData = new FormData();
+        uploadData.append("image", imageFile);
+
+        const uploadRes = await axios.post(
+          `${API_URL}/api/upload`,
+          uploadData,
+          {
+            headers: {
+              ...config.headers,
+              "Content-Type": "multipart/form-data",
+            },
+          },
+        );
+        finalImageUrl = uploadRes.data.imageUrl;
+      }
+
+      const productData = { ...formData, image: finalImageUrl };
+
       if (isEditing) {
         await axios.put(
           `${API_URL}/api/products/${formData._id}`,
-          formData,
+          productData,
           config,
         );
       } else {
-        await axios.post(`${API_URL}/api/products`, formData, config);
+        await axios.post(`${API_URL}/api/products`, productData, config);
       }
-      toast.success("Başarılı!");
+
+      toast.success("Başarılı!", { id: "product-save" });
       cancelEditingProduct();
       fetchData();
     } catch (err) {
-      toast.error("Hata!");
+      console.error(err);
+      toast.error("Hata oluştu!", { id: "product-save" });
     }
   };
 
@@ -893,18 +924,74 @@ export const AdminDashboard = () => {
                       </option>
                     ))}
                   </select>
-                  <input
-                    type="text"
-                    required
-                    value={formData.image}
-                    onChange={(e) =>
-                      setFormData({ ...formData, image: e.target.value })
-                    }
-                    className="w-full border-2 rounded-2xl p-4 font-bold focus:border-[#FF6B00] outline-none transition-all placeholder:text-gray-300"
-                    placeholder="RESİM URL (Örn: https://resim.com/kumpir.jpg)"
-                  />
 
-                  {/* --- EKSTRALAR (Kataloğa Ekle Butonunun Hemen Üstü) --- */}
+                  {/* YENİ SÜRÜKLE BIRAK ALANI */}
+                  <div
+                    className={`relative border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-all overflow-hidden min-h-[160px] ${
+                      isDragging
+                        ? "border-[#FF6B00] bg-orange-50"
+                        : "border-gray-300 hover:border-[#FF6B00] bg-gray-50"
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        const file = e.dataTransfer.files[0];
+                        setImageFile(file);
+                        setFormData({
+                          ...formData,
+                          image: URL.createObjectURL(file),
+                        });
+                      }
+                    }}>
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/webp"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          const file = e.target.files[0];
+                          setImageFile(file);
+                          setFormData({
+                            ...formData,
+                            image: URL.createObjectURL(file),
+                          });
+                        }
+                      }}
+                    />
+
+                    {formData.image ? (
+                      <div className="flex flex-col items-center z-0">
+                        <img
+                          src={formData.image}
+                          alt="Preview"
+                          className="w-32 h-32 object-cover rounded-2xl shadow-md mb-3"
+                        />
+                        <span className="text-xs font-bold text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm">
+                          Değiştirmek için tıkla veya sürükle
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center pointer-events-none z-0">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 text-gray-400">
+                          <Plus size={32} />
+                        </div>
+                        <p className="font-black text-gray-600 text-lg">
+                          Resmi Buraya Sürükle
+                        </p>
+                        <p className="text-sm font-bold text-gray-400">
+                          veya seçmek için tıkla
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* --- EKSTRALAR --- */}
                   <div className="border-2 rounded-3xl p-6 bg-gray-50 border-gray-100 mt-6 shadow-inner">
                     <h4 className="font-black text-sm mb-4 text-gray-600 uppercase tracking-wider">
                       Ürün Ekstraları (Opsiyonel)
@@ -1031,10 +1118,9 @@ export const AdminDashboard = () => {
                               typeof p.category === "object"
                                 ? (p.category as any)._id
                                 : p.category,
-                            extras: p.extras || [], // Düzenle dediğimizde ekstraları da çek
+                            extras: p.extras || [],
                           });
                           setIsEditing(true);
-                          // Sayfayı yukarı taşı (opsiyonel)
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
                         title="Düzenle"

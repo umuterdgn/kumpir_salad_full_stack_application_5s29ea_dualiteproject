@@ -4,6 +4,13 @@ import pkg from "jsonwebtoken";
 const { sign, verify } = pkg;
 import { User, Category, Product, Order, Event } from "./models.js";
 
+import dotenv from "dotenv";
+dotenv.config();
+// Yeni eklenen kütüphaneler
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import { Readable } from "stream";
+
 const router = express.Router();
 
 const SECRET_KEY = process.env.JWT_SECRET || "kumpir_super_gizli_anahtar_123";
@@ -25,6 +32,84 @@ const authGuard = (req, res, next) => {
   }
 };
 
+// --- CLOUDINARY & MULTER AYARLARI ---
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// --- UPLOAD (RESİM YÜKLEME) ---
+router.post("/upload", authGuard, upload.single("image"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "Lütfen bir resim dosyası seçin." });
+  }
+// --- UPLOAD (RESİM YÜKLEME) ---
+router.post("/upload", authGuard, upload.single("image"), (req, res) => {
+  // TEST KODU: Bakalım Node.js şifreleri okuyabiliyor mu?
+  console.log("==== TEST ====");
+  console.log("Bulunan Cloud Name:", process.env.CLOUDINARY_CLOUD_NAME);
+  console.log("Bulunan API Key:", process.env.CLOUDINARY_API_KEY);
+  console.log("==============");
+
+  if (!req.file) {
+    return res.status(400).json({ error: "Lütfen bir resim dosyası seçin." });
+  }
+
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+
+  const uploadStream = cloudinary.uploader.upload_stream(
+    { folder: "kumpir-salad-menu" },
+    (error, result) => {
+      if (error) {
+        console.error("Cloudinary Hatası:", error);
+        return res.status(500).json({ error: "Resim yüklenirken bir hata oluştu." });
+      }
+      res.json({ imageUrl: result.secure_url });
+    },
+  );
+
+  const readableStream = new Readable();
+  readableStream.push(req.file.buffer);
+  readableStream.push(null);
+  readableStream.pipe(uploadStream);
+});
+  // ÇÖZÜM BURADA: Ayarları tam resim yüklenirken yapıyoruz ki .env kesinlikle okunmuş olsun!
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+
+  // Resmi Cloudinary'ye gönderen akış (stream)
+  const uploadStream = cloudinary.uploader.upload_stream(
+    { folder: "kumpir-salad-menu" },
+    (error, result) => {
+      if (error) {
+        console.error("Cloudinary Hatası:", error);
+        return res
+          .status(500)
+          .json({ error: "Resim yüklenirken bir hata oluştu." });
+      }
+
+      // Başarılı yükleme, frontend'e URL'i gönderiyoruz
+      res.json({ imageUrl: result.secure_url });
+    },
+  );
+
+  // Buffer'ı okunabilir akışa çevirip Cloudinary'ye besliyoruz
+  const readableStream = new Readable();
+  readableStream.push(req.file.buffer);
+  readableStream.push(null);
+  readableStream.pipe(uploadStream);
+});
 // --- AUTH (GİRİŞ VE KURULUM) ---
 router.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
@@ -41,34 +126,6 @@ router.post("/auth/login", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-/* 🚨 CANLI ORTAM İÇİN YORUMA ALINDI (GÜVENLİK) 🚨 
-   Eğer veritabanını tekrar sıfırlaman gerekirse bu yorum satırlarını kaldırıp lokalde yapabilirsin.
-router.get("/auth/setup", async (req, res) => {
-  try {
-    await User.deleteMany({}); // Eski kullanıcıları sil
-
-    const salt = await bcrypt.genSalt(10);
-    const adminPass = await bcrypt.hash("admin123", salt);
-    const kasaPass = await bcrypt.hash("kasa123", salt);
-    const garsonPass = await bcrypt.hash("garson123", salt);
-
-    await User.insertMany([
-      { email: "admin@kumpirsalad.com", password: adminPass, role: "admin" },
-      { email: "kasa@kumpirsalad.com", password: kasaPass, role: "kasa" },
-      { email: "garson@kumpirsalad.com", password: garsonPass, role: "garson" },
-    ]);
-
-    res.json({
-      message:
-        "Eski hesaplar silindi ve yenileri başarıyla oluşturuldu! Admin, Kasa ve Garson giriş yapabilir.",
-    });
-  } catch (err) {
-    console.error("Setup Hatası:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-*/
 
 // --- CATEGORIES ---
 router.get("/categories", async (req, res) => {

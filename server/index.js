@@ -1,3 +1,4 @@
+import "dotenv/config"; // Bu satır en üstte olmalı!
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
