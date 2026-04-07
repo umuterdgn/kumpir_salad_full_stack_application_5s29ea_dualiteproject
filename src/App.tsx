@@ -9,7 +9,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "react-hot-toast";
 import axios from "axios"; // BUNA DİKKAT
 import { useAppStore } from "./store"; // BUNA DİKKAT
-
+import Franchise from "./pages/Franchise";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
 import { Home } from "./pages/Home";
@@ -78,6 +78,7 @@ function App() {
             <Route path="/iletisim" element={<Contact />} />
             <Route path="/admin-login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/franchise" element={<Franchise />} />
           </Routes>
         </Layout>
       </Router>

@@ -15,6 +15,7 @@ import {
   Edit3,
   FolderTree,
   TrendingUp,
+  Briefcase,
 } from "lucide-react";
 import { SEO } from "../components/SEO";
 import { ProductModal } from "../components/ProductModal";
@@ -57,6 +58,7 @@ export const AdminDashboard = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ events: [] });
   const [waiterCalls, setWaiterCalls] = useState<any[]>([]);
+  const [franchises, setFranchises] = useState<any[]>([]); // YENİ: Franchise State'i
 
   // POS & Form States
   const [posCategory, setPosCategory] = useState<string>("all");
@@ -96,16 +98,20 @@ export const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const [ordRes, statRes, prodRes, catRes] = await Promise.all([
+      const [ordRes, statRes, prodRes, catRes, franRes] = await Promise.all([
         axios.get(`${API_URL}/api/orders`, config),
         axios.get(`${API_URL}/api/stats`, config),
         axios.get(`${API_URL}/api/products`),
         axios.get(`${API_URL}/api/categories`),
+        axios
+          .get(`${API_URL}/api/franchise`, config)
+          .catch(() => ({ data: [] })), // YENİ: Franchise Verisini Çek
       ]);
       setOrders(ordRes.data);
       setStats(statRes.data);
       setProducts(prodRes.data);
       setCategories(catRes.data);
+      setFranchises(franRes.data);
     } catch (e) {
       console.error("Veri çekme hatası.");
     }
@@ -171,11 +177,10 @@ export const AdminDashboard = () => {
     });
     setNewExtraName("");
     setNewExtraPrice("");
-    setImageFile(null); // İptal edildiğinde resim state'ini de temizle
+    setImageFile(null);
   };
 
   // --- ACTIONS ---
-  // GÜNCELLENEN SUBMIT FONKSİYONU
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -183,7 +188,6 @@ export const AdminDashboard = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       let finalImageUrl = formData.image;
 
-      // Resim seçildiyse önce Cloudinary'ye gönder
       if (imageFile) {
         const uploadData = new FormData();
         uploadData.append("image", imageFile);
@@ -413,6 +417,16 @@ export const AdminDashboard = () => {
           </button>
           {userRole === "admin" && (
             <div className="pt-4 border-t border-white/5 mt-4 space-y-2">
+              {/* YENİ EKLENEN FRANCHISE BUTONU */}
+              <button
+                onClick={() => setActiveTab("franchise")}
+                className={`w-full flex items-center p-4 rounded-2xl font-bold ${activeTab === "franchise" ? "bg-[#FF6B00]" : "hover:bg-white/5"}`}>
+                <Briefcase size={20} />{" "}
+                {isSidebarOpen && (
+                  <span className="ml-3">Franchise Talepleri</span>
+                )}
+              </button>
+
               <button
                 onClick={() => setActiveTab("categories")}
                 className={`w-full flex items-center p-4 rounded-2xl font-bold ${activeTab === "categories" ? "bg-[#FF6B00]" : "hover:bg-white/5"}`}>
@@ -462,11 +476,13 @@ export const AdminDashboard = () => {
                   ? "Masa Çağrıları"
                   : activeTab === "orders"
                     ? "Siparişler"
-                    : activeTab === "categories"
-                      ? "Kategoriler"
-                      : activeTab === "menu"
-                        ? "Menü Ayarları"
-                        : "Raporlar"}
+                    : activeTab === "franchise"
+                      ? "Franchise Talepleri"
+                      : activeTab === "categories"
+                        ? "Kategoriler"
+                        : activeTab === "menu"
+                          ? "Menü Ayarları"
+                          : "Raporlar"}
             </h1>
           </div>
           <div className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider">
@@ -757,6 +773,100 @@ export const AdminDashboard = () => {
             </div>
           )}
 
+          {/* TAB: FRANCHISE APPLICATIONS (YENİ EKLENEN KISIM) */}
+          {activeTab === "franchise" && (
+            <div className="bg-white rounded-[40px] shadow-xl border overflow-hidden">
+              <div className="p-8 border-b bg-gray-50 flex justify-between items-center">
+                <h3 className="font-black text-2xl uppercase tracking-tighter">
+                  Franchise Başvuruları
+                </h3>
+                <span className="bg-[#FF6B00] text-white px-4 py-1 rounded-full text-xs font-bold">
+                  Toplam: {franchises.length}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-100">
+                  <thead className="bg-gray-50 font-black text-[11px] text-gray-500 uppercase tracking-wider">
+                    <tr>
+                      <th className="px-8 py-6 text-left">AD SOYAD / TARİH</th>
+                      <th className="px-8 py-6 text-left">İLETİŞİM / BÖLGE</th>
+                      <th className="px-8 py-6 text-left">YATIRIM BÜTÇESİ</th>
+                      <th className="px-8 py-6 text-left">MESAJ</th>
+                      <th className="px-8 py-6 text-right">İŞLEMLER</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {franchises.map((f) => (
+                      <tr
+                        key={f._id}
+                        className="hover:bg-gray-50 transition-colors">
+                        <td className="px-8 py-6">
+                          <div className="font-black text-gray-800">
+                            {f.name}
+                          </div>
+                          <div className="text-[10px] text-gray-400 font-bold">
+                            {new Date(f.createdAt).toLocaleDateString("tr-TR")}
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
+                            <span className="text-[#FF6B00]">{f.phone}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 font-medium mt-1">
+                            Şehir: {f.city || "-"}
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-xs font-black">
+                            {f.investment || "Belirtilmedi"}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <p
+                            className="text-xs text-gray-500 max-w-xs truncate"
+                            title={f.message}>
+                            {f.message || "-"}
+                          </p>
+                        </td>
+                        <td className="px-8 py-6 text-right space-x-2 whitespace-nowrap">
+                          <button
+                            onClick={async () => {
+                              if (
+                                confirm("Başvuruyu silmek istiyor musunuz?")
+                              ) {
+                                try {
+                                  await axios.delete(
+                                    `${API_URL}/api/franchise/${f._id}`,
+                                    {
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    },
+                                  );
+                                  fetchData();
+                                  toast.success("Başvuru silindi.");
+                                } catch (error) {
+                                  toast.error("Silme işlemi başarısız.");
+                                }
+                              }
+                            }}
+                            className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all">
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {franchises.length === 0 && (
+                <div className="text-center py-20 text-gray-400 font-bold italic">
+                  Henüz franchise başvurusu bulunmuyor.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB: CATEGORIES */}
           {activeTab === "categories" && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -925,7 +1035,6 @@ export const AdminDashboard = () => {
                     ))}
                   </select>
 
-                  {/* YENİ SÜRÜKLE BIRAK ALANI */}
                   <div
                     className={`relative border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-all overflow-hidden min-h-[160px] ${
                       isDragging
@@ -991,7 +1100,6 @@ export const AdminDashboard = () => {
                     )}
                   </div>
 
-                  {/* --- EKSTRALAR --- */}
                   <div className="border-2 rounded-3xl p-6 bg-gray-50 border-gray-100 mt-6 shadow-inner">
                     <h4 className="font-black text-sm mb-4 text-gray-600 uppercase tracking-wider">
                       Ürün Ekstraları (Opsiyonel)
@@ -1025,7 +1133,6 @@ export const AdminDashboard = () => {
                       </div>
                     </div>
 
-                    {/* Eklenen Ekstraları Listele */}
                     {formData.extras && formData.extras.length > 0 ? (
                       <div className="space-y-2.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
                         {formData.extras.map((ex, idx) => (
@@ -1057,7 +1164,6 @@ export const AdminDashboard = () => {
                     )}
                   </div>
 
-                  {/* --- SUBMIT BUTONU --- */}
                   <button className="w-full bg-[#FF6B00] text-white py-4 rounded-2xl font-black text-xl shadow-xl uppercase mt-8 transition-all hover:bg-orange-600">
                     {isEditing
                       ? "DEĞİŞİKLİKLERİ KAYDET"
@@ -1074,7 +1180,6 @@ export const AdminDashboard = () => {
                 </form>
               </div>
 
-              {/* ÜRÜN LİSTESİ */}
               <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 h-fit">
                 {products.map((p) => (
                   <div
@@ -1096,7 +1201,6 @@ export const AdminDashboard = () => {
                         {p.description}
                       </p>
 
-                      {/* Ürünün sahip olduğu ekstraları tag olarak göster */}
                       {p.extras && p.extras.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 pt-2 border-t mt-3">
                           {p.extras.map((ex, i) => (

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ShoppingBag, Menu as MenuIcon, X, BellRing } from "lucide-react";
 import { useAppStore } from "../store";
 import { CartDrawer } from "./CartDrawer";
+import { WaiterModal } from "./WaiterModal"; // YENİ IMPORT
 import { io } from "socket.io-client";
 import toast from "react-hot-toast";
 import logo from "../assets/logo.png";
@@ -12,19 +13,22 @@ const socket = io(window.location.origin);
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isWaiterModalOpen, setIsWaiterModalOpen] = useState(false); // MODAL STATE
+
   const cart = useAppStore((state) => state.cart);
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  const callWaiter = () => {
-    // In a real app, table number would be known via QR code URL parameter
-    const tableNo = prompt("Lütfen masa numaranızı giriniz (Örn: 5):");
-    if (tableNo) {
-      socket.emit("call_waiter", {
-        table: `Masa ${tableNo}`,
-        time: new Date(),
-      });
-      toast.success("Garson çağrıldı, en kısa sürede masanızda olacak.");
-    }
+  // Modal'dan gelen verileri yakalayan fonksiyon
+  const handleWaiterConfirm = (tableNo, phone) => {
+    socket.emit("call_waiter", {
+      table: `Masa ${tableNo}`,
+      phone: phone,
+      time: new Date(),
+    });
+    toast.success("Garson çağrıldı, en kısa sürede masanızda olacak.", {
+      icon: "🛎️",
+      style: { borderRadius: "15px", background: "#333", color: "#fff" },
+    });
   };
 
   return (
@@ -34,11 +38,10 @@ export const Navbar = () => {
           <div className="flex justify-between h-20">
             <div className="flex items-center">
               <Link to="/" className="flex-shrink-0 flex items-center gap-2">
-                {/* BURASI DEĞİŞTİ: Mevcut div ve span yerine img eklendi */}
-                <img 
-                  src={logo} 
-                  alt="Kumpir Salad Logo" 
-                  className="h-12 w-auto object-contain" 
+                <img
+                  src={logo}
+                  alt="Kumpir Salad"
+                  className="h-12 w-auto object-contain"
                 />
               </Link>
             </div>
@@ -65,11 +68,12 @@ export const Navbar = () => {
                 İletişim
               </Link>
 
+              {/* Garson Çağır Butonu */}
               <button
-                onClick={callWaiter}
-                className="flex items-center gap-2 text-brand-green hover:text-green-700 font-medium transition-colors bg-green-50/80 backdrop-blur-sm px-4 py-2 rounded-full">
+                onClick={() => setIsWaiterModalOpen(true)}
+                className="flex items-center gap-2 text-brand-green hover:text-white hover:bg-brand-green font-semibold transition-all bg-green-50 px-5 py-2.5 rounded-2xl border border-brand-green/20">
                 <BellRing size={18} />
-                Garson Çağır
+                Sipariş Ver
               </button>
 
               <button
@@ -77,23 +81,19 @@ export const Navbar = () => {
                 className="relative p-2 text-brand-dark hover:text-brand-orange transition-colors">
                 <ShoppingBag size={24} />
                 {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-brand-orange rounded-full shadow-sm">
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold text-white bg-brand-orange rounded-full transform translate-x-1/4 -translate-y-1/4 shadow-sm">
                     {cartCount}
                   </span>
                 )}
               </button>
             </div>
 
+            {/* Mobile Menu Button */}
             <div className="flex items-center md:hidden gap-4">
               <button
                 onClick={() => setIsCartOpen(true)}
                 className="relative p-2 text-brand-dark">
                 <ShoppingBag size={24} />
-                {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-brand-orange rounded-full">
-                    {cartCount}
-                  </span>
-                )}
               </button>
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -103,46 +103,40 @@ export const Navbar = () => {
             </div>
           </div>
         </div>
-        {/* Mobile menu */}
+
+        {/* Mobile menu dropdown */}
         {isOpen && (
-          <div className="md:hidden bg-white/95 backdrop-blur-md border-t absolute w-full shadow-lg">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-              <Link
-                to="/"
-                onClick={() => setIsOpen(false)}
-                className="block px-3 py-2 text-brand-dark font-medium">
-                Ana Sayfa
-              </Link>
-              <Link
-                to="/menu"
-                onClick={() => setIsOpen(false)}
-                className="block px-3 py-2 text-brand-dark font-medium">
-                Menü
-              </Link>
-              <Link
-                to="/hakkimizda"
-                onClick={() => setIsOpen(false)}
-                className="block px-3 py-2 text-brand-dark font-medium">
-                Hakkımızda
-              </Link>
-              <Link
-                to="/iletisim"
-                onClick={() => setIsOpen(false)}
-                className="block px-3 py-2 text-brand-dark font-medium">
-                İletişim
-              </Link>
-              <button
-                onClick={() => {
-                  callWaiter();
-                  setIsOpen(false);
-                }}
-                className="block w-full text-left px-3 py-2 text-brand-green font-medium">
-                Garson Çağır
-              </button>
-            </div>
+          <div className="md:hidden bg-white/95 backdrop-blur-md border-t absolute w-full shadow-lg p-4 space-y-2">
+            <Link
+              to="/"
+              onClick={() => setIsOpen(false)}
+              className="block px-3 py-2 text-brand-dark font-medium">
+              Ana Sayfa
+            </Link>
+            <Link
+              to="/menu"
+              onClick={() => setIsOpen(false)}
+              className="block px-3 py-2 text-brand-dark font-medium">
+              Menü
+            </Link>
+            <button
+              onClick={() => {
+                setIsWaiterModalOpen(true);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-3 py-3 text-brand-green font-bold flex items-center gap-2 bg-green-50 rounded-xl">
+              <BellRing size={20} /> Sipariş Ver
+            </button>
           </div>
         )}
       </nav>
+
+      {/* MODALLAR */}
+      <WaiterModal
+        isOpen={isWaiterModalOpen}
+        onClose={() => setIsWaiterModalOpen(false)}
+        onConfirm={handleWaiterConfirm}
+      />
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>

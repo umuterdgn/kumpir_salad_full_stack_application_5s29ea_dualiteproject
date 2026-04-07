@@ -1,6 +1,14 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter, MapPin, Phone, Mail } from 'lucide-react';
+import React from "react";
+import { Link } from "react-router-dom";
+import {
+  Facebook,
+  Instagram,
+  Twitter,
+  MapPin,
+  Phone,
+  Mail,
+  Briefcase,
+} from "lucide-react";
 
 export const Footer = () => {
   return (
@@ -12,39 +20,96 @@ export const Footer = () => {
               <div className="w-10 h-10 bg-brand-orange rounded-full flex items-center justify-center text-white font-bold text-xl">
                 KS
               </div>
-              <span className="font-bold text-2xl tracking-tight">Kumpir Salad</span>
+              <span className="font-bold text-2xl tracking-tight">
+                Kumpir Salad
+              </span>
             </div>
             <p className="text-gray-300 mb-6">
-              En taze malzemelerle hazırlanan eşsiz lezzetler. Kumpir ve salatanın mükemmel uyumu.
+              En taze malzemelerle hazırlanan eşsiz lezzetler. Kumpir ve
+              salatanın mükemmel uyumu.
             </p>
             <div className="flex space-x-4">
-              <a href="https://www.facebook.com/kumpirsaladiskenderun/" className="text-gray-300 hover:text-brand-orange transition-colors"><Facebook size={24} /></a>
-              <a href="https://www.instagram.com/kumpirsaladiskenderun/" className="text-gray-300 hover:text-brand-orange transition-colors"><Instagram size={24} /></a>
-              <a href="https://twitter.com/kumpirsalad" className="text-gray-300 hover:text-brand-orange transition-colors"><Twitter size={24} /></a>
+              <a
+                href="https://www.facebook.com/kumpirsaladiskenderun/"
+                className="text-gray-300 hover:text-brand-orange transition-colors">
+                <Facebook size={24} />
+              </a>
+              <a
+                href="https://www.instagram.com/kumpirsaladiskenderun/"
+                className="text-gray-300 hover:text-brand-orange transition-colors">
+                <Instagram size={24} />
+              </a>
+              <a
+                href="https://twitter.com/kumpirsalad"
+                className="text-gray-300 hover:text-brand-orange transition-colors">
+                <Twitter size={24} />
+              </a>
             </div>
           </div>
 
           <div>
-            <h3 className="text-lg font-bold mb-6 text-brand-orange">Hızlı Linkler</h3>
+            <h3 className="text-lg font-bold mb-6 text-brand-orange">
+              Hızlı Linkler
+            </h3>
             <ul className="space-y-3">
-              <li><Link to="/" className="text-gray-300 hover:text-white transition-colors">Ana Sayfa</Link></li>
-              <li><Link to="/menu" className="text-gray-300 hover:text-white transition-colors">Menü</Link></li>
-              <li><Link to="/hakkimizda" className="text-gray-300 hover:text-white transition-colors">Hakkımızda</Link></li>
-              <li><Link to="/iletisim" className="text-gray-300 hover:text-white transition-colors">İletişim</Link></li>
+              <li>
+                <Link
+                  to="/"
+                  className="text-gray-300 hover:text-white transition-colors">
+                  Ana Sayfa
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/menu"
+                  className="text-gray-300 hover:text-white transition-colors">
+                  Menü
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/hakkimizda"
+                  className="text-gray-300 hover:text-white transition-colors">
+                  Hakkımızda
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/iletisim"
+                  className="text-gray-300 hover:text-white transition-colors">
+                  İletişim
+                </Link>
+              </li>
+              {/* Franchise Linki Eklendi ve Rota Düzenlendi */}
+              <li className="pt-2">
+                <Link
+                  to="/Franchise"
+                  className="flex items-center gap-2 text-brand-orange font-bold hover:text-white transition-all group">
+                  <Briefcase
+                    size={18}
+                    className="group-hover:scale-110 transition-transform"
+                  />
+                  Franchise (Bayilik)
+                </Link>
+              </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-lg font-bold mb-6 text-brand-orange">İletişim</h3>
+            <h3 className="text-lg font-bold mb-6 text-brand-orange">
+              İletişim
+            </h3>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <MapPin className="text-brand-green shrink-0 mt-1" size={20} />
-                <span className="text-gray-300">PRİMEMEAL AVM İSKENDERUN, HATAY, Türkiye <br />
+                <span className="text-gray-300">
+                  PRİMEMEAL AVM İSKENDERUN, HATAY, Türkiye <br />
                 </span>
               </li>
               <li className="flex items-start gap-3">
                 <MapPin className="text-brand-green shrink-0 mt-1" size={20} />
-                <span className="text-gray-300">Karağaç Konarlı mah. Uğurmumcu cad., HATAY, Türkiye <br />
+                <span className="text-gray-300">
+                  Karağaç Konarlı mah. Uğurmumcu cad., HATAY, Türkiye <br />
                 </span>
               </li>
               <li className="flex items-center gap-3">
@@ -53,13 +118,15 @@ export const Footer = () => {
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="text-brand-green shrink-0" size={20} />
-                <span className="text-gray-300">info@kumpirsalad.com</span>
+                <span className="text-gray-300">info@dalbil.com.tr</span>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-lg font-bold mb-6 text-brand-orange">Çalışma Saatleri</h3>
+            <h3 className="text-lg font-bold mb-6 text-brand-orange">
+              Çalışma Saatleri
+            </h3>
             <ul className="space-y-3 text-gray-300">
               <li className="flex justify-between border-b border-gray-700 pb-2">
                 <span>Pzt - Cum:</span>
@@ -82,7 +149,9 @@ export const Footer = () => {
             &copy; {new Date().getFullYear()} NexiumDMA. Tüm hakları saklıdır.
           </p>
           <div className="mt-4 md:mt-0">
-            <Link to="/admin-login" className="text-gray-500 hover:text-brand-orange text-sm transition-colors">
+            <Link
+              to="/admin-login"
+              className="text-gray-500 hover:text-brand-orange text-sm transition-colors">
               Yönetici Girişi
             </Link>
           </div>
