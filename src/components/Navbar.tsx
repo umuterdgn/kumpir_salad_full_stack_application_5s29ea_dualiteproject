@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ShoppingBag, Menu as MenuIcon, X, BellRing } from "lucide-react";
 import { useAppStore } from "../store";
 import { CartDrawer } from "./CartDrawer";
-import { WaiterModal } from "./WaiterModal"; // YENİ IMPORT
+import { WaiterModal } from "./WaiterModal";
 import { io } from "socket.io-client";
 import toast from "react-hot-toast";
 import logo from "../assets/logo.png";
@@ -13,12 +13,11 @@ const socket = io(window.location.origin);
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isWaiterModalOpen, setIsWaiterModalOpen] = useState(false); // MODAL STATE
+  const [isWaiterModalOpen, setIsWaiterModalOpen] = useState(false);
 
   const cart = useAppStore((state) => state.cart);
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  // Modal'dan gelen verileri yakalayan fonksiyon
   const handleWaiterConfirm = (tableNo, phone) => {
     socket.emit("call_waiter", {
       table: `Masa ${tableNo}`,
@@ -35,17 +34,20 @@ export const Navbar = () => {
     <>
       <nav className="fixed top-0 w-full z-50 bg-white/60 backdrop-blur-md border-b border-white/20 shadow-sm transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-20">
+          <div className="flex justify-between items-center h-24">
+            {/* SOL: GENİŞ LOGO */}
             <div className="flex items-center">
-              <Link to="/" className="flex-shrink-0 flex items-center gap-2">
+              <Link to="/" className="flex-shrink-0 flex items-center">
                 <img
                   src={logo}
                   alt="Kumpir Salad"
-                  className="h-12 w-auto object-contain"
+                  // Logoyu sola yaslı ve geniş yaptık
+                  className="w-48 md:w-64 h-auto object-contain transition-transform duration-300 hover:scale-105"
                 />
               </Link>
             </div>
 
+            {/* SAĞ: MASAÜSTÜ MENÜ */}
             <div className="hidden md:flex items-center space-x-8">
               <Link
                 to="/"
@@ -88,12 +90,17 @@ export const Navbar = () => {
               </button>
             </div>
 
-            {/* Mobile Menu Button */}
+            {/* SAĞ: MOBİL MENÜ BUTONLARI */}
             <div className="flex items-center md:hidden gap-4">
               <button
                 onClick={() => setIsCartOpen(true)}
                 className="relative p-2 text-brand-dark">
                 <ShoppingBag size={24} />
+                {cartCount > 0 && (
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold text-white bg-brand-orange rounded-full transform translate-x-1/4 -translate-y-1/4 shadow-sm">
+                    {cartCount}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -104,7 +111,7 @@ export const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile menu dropdown */}
+        {/* Mobil Dropdown Menü */}
         {isOpen && (
           <div className="md:hidden bg-white/95 backdrop-blur-md border-t absolute w-full shadow-lg p-4 space-y-2">
             <Link
